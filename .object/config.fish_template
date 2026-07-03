@@ -1,0 +1,98 @@
+# ~/.config/fish/config.fish file for Arch Linux - Customized by H4CK3R
+
+# Disable greeting
+set fish_greeting
+
+# Shell variables/options
+set -gx CLICOLOR 1
+set -gx CLICOLOR_FORCE 1
+set -gx fish_autosuggestion_enabled 1
+
+# Archify Welcome Banner
+if test -f "$HOME/.archify-banner.sh"
+    bash "$HOME/.archify-banner.sh"
+else
+    # Fallback to fastfetch if banner script doesn't exist
+    if command -v fastfetch >/dev/null 2>&1
+        if test -f "$HOME/.config/fastfetch/config.jsonc"
+            fastfetch --config "$HOME/.config/fastfetch/config.jsonc"
+        else
+            fastfetch
+        end
+    else
+        # Simple ASCII Art fallback
+        set_color cyan
+        echo "  /\\"
+        set_color white
+        echo " /  \\   Arch Linux"
+        set_color cyan
+        echo "/ _ _ \\"
+        set_color normal
+    end
+end
+
+# Custom Fish Prompt
+# ┌─[󰣇 name@ARCH]-[~/path]
+# └─╼ ❯❯❯
+function fish_prompt
+    set -l last_status $status
+    echo
+    set_color cyan
+    printf "┌─["
+    set_color blue
+    printf "󰣇 PROC"
+    set_color cyan
+    printf "@"
+    set_color blue
+    printf "ARCH"
+    set_color cyan
+    printf "]-["
+    set_color green
+    printf "%s" (prompt_pwd)
+    set_color cyan
+    printf "]"
+    
+    # Git integration
+    if command -v git >/dev/null 2>&1
+        if git rev-parse --is-inside-work-tree >/dev/null 2>&1
+            set -l branch (git symbolic-ref --short HEAD 2>/dev/null)
+            set -l status_count (git status --porcelain 2>/dev/null | count)
+            if test $status_count -gt 0
+                set_color red
+                printf "─[git:(%s*)]" $branch
+            else
+                set_color green
+                printf "─[git:(%s)]" $branch
+            fi
+        end
+    end
+    
+    echo
+    set_color cyan
+    printf "└─╼ "
+    if test $last_status -eq 0
+        set_color cyan
+        printf "❯"
+        set_color blue
+        printf "❯"
+        set_color white
+        printf "❯ "
+    else
+        set_color red
+        printf "✗"
+        set_color blue
+        printf "❯"
+        set_color white
+        printf "❯ "
+    end
+    set_color normal
+end
+
+# Aliases
+alias ls='ls --color=auto'
+alias la='ls -A'
+alias ll='ls -lh'
+alias grep='grep --color=auto'
+alias pacupd='sudo pacman -Syu'
+alias pacinst='sudo pacman -S'
+alias pacrem='sudo pacman -Rns'
