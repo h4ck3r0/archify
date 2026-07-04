@@ -3,6 +3,14 @@
 # If not running interactively, don't do anything
 [[ $- != *i* ]] && return
 
+# Enable ble.sh if installed
+if [ -f "/usr/share/blesh/ble.sh" ]; then
+    source /usr/share/blesh/ble.sh --noattach
+elif [ -f "$HOME/.local/share/blesh/ble.sh" ]; then
+    source "$HOME/.local/share/blesh/ble.sh" --noattach
+fi
+
+
 # Basic Settings
 HISTCONTROL=ignoreboth
 shopt -s histappend
@@ -48,4 +56,9 @@ else
         echo -e "\e[1;36m/ _ _ \ \e[0m"
     fi
 fi
+
+
+# Attach ble.sh
+[[ ${BLE_VERSION-} ]] && ble-attach
+
 

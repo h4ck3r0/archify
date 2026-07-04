@@ -207,8 +207,8 @@ apply_fish_theme() {
     menu
 }
 
-# Download & Setup Plugins
-apply_plugins() {
+# Download & Setup Zsh Plugins
+apply_zsh_plugins() {
     echo -e "${G}\n [*] Setting up autosuggestions and syntax highlighting...${RS}"
     
     # Try system packages first
@@ -239,7 +239,158 @@ apply_plugins() {
 
     echo -e "${G} [✓] Plugins ready! Reload Zsh to verify.${RS}"
     sleep 2
-    menu
+    apply_plugins
+}
+
+# Download & Setup Bash Plugins (ble.sh)
+apply_bash_plugins() {
+    echo -e "${G}\n [*] Setting up ble.sh for Bash (Syntax Highlighting & Auto-suggestions)...${RS}"
+    
+    local blesh_installed=false
+    local blesh_path=""
+    
+    # Check if ble.sh is already installed
+    if [ -f "/usr/share/blesh/ble.sh" ]; then
+        blesh_installed=true
+        blesh_path="/usr/share/blesh/ble.sh"
+    elif [ -f "$HOME/.local/share/blesh/ble.sh" ]; then
+        blesh_installed=true
+        blesh_path="$HOME/.local/share/blesh/ble.sh"
+    fi
+    
+    if [ "$blesh_installed" = true ]; then
+        echo -e "${G} [✓] ble.sh is already installed at: $blesh_path${RS}"
+    else
+        # Try installing via AUR helper first
+        if command -v yay &> /dev/null; then
+            echo -e "${G} [*] Installing blesh via yay...${RS}"
+            yay -S --needed --noconfirm blesh
+        elif command -v paru &> /dev/null; then
+            echo -e "${G} [*] Installing blesh via paru...${RS}"
+            paru -S --needed --noconfirm blesh
+        fi
+        
+        # Re-check if AUR installation succeeded
+        if [ -f "/usr/share/blesh/ble.sh" ]; then
+            blesh_installed=true
+            blesh_path="/usr/share/blesh/ble.sh"
+        fi
+        
+        # Fallback to nightly pre-built download if AUR failed or wasn't available
+        if [ "$blesh_installed" = false ]; then
+            echo -e "${Y} [*] AUR helper not found or install failed. Downloading pre-built ble.sh nightly...${RS}"
+            local blesh_dir="$HOME/.local/share/blesh"
+            mkdir -p "$blesh_dir"
+            if command -v curl &>/dev/null && command -v tar &>/dev/null; then
+                if curl -L https://github.com/akinomyoga/ble.sh/releases/download/nightly/ble-nightly.tar.xz | tar xJf - -C "$blesh_dir" --strip-components=1; then
+                    blesh_installed=true
+                    blesh_path="$blesh_dir/ble.sh"
+                fi
+            elif command -v wget &>/dev/null && command -v tar &>/dev/null; then
+                if wget -O - https://github.com/akinomyoga/ble.sh/releases/download/nightly/ble-nightly.tar.xz | tar xJf - -C "$blesh_dir" --strip-components=1; then
+                    blesh_installed=true
+                    blesh_path="$blesh_dir/ble.sh"
+                fi
+            fi
+        fi
+    fi
+    
+    if [ "$blesh_installed" = false ] || [ ! -f "$blesh_path" ]; then
+        echo -e "${R} [!] Failed to install ble.sh. Please install git/curl/tar or build manually.${RS}"
+        sleep 2
+        apply_plugins
+        return
+    fi
+    
+    # Configure in ~/.bashrc
+    if [ -f "$HOME/.bashrc" ]; then
+        if ! grep -q "ble.sh" "$HOME/.bashrc"; then
+            echo -e "${G} [*] Adding ble.sh to .bashrc...${RS}"
+            
+            # Temporary file to build new .bashrc
+            local temp_rc=$(mktemp)
+            local added=false
+            
+            # Write out modified .bashrc line-by-line
+            while IFS= read -r line; do
+                echo "$line" >> "$temp_rc"
+                # Locate where to insert the source command: right after the non-interactive check
+                if [[ "$line" == *"[[ $- != *i* ]]"* ]]; then
+                    if [ "$added" = false ]; then
+                        echo -e "\n# Enable ble.sh" >> "$temp_rc"
+                        echo 'if [ -f "/usr/share/blesh/ble.sh" ]; then' >> "$temp_rc"
+                        echo '    source /usr/share/blesh/ble.sh --noattach' >> "$temp_rc"
+                        echo 'elif [ -f "$HOME/.local/share/blesh/ble.sh" ]; then' >> "$temp_rc"
+                        echo '    source "$HOME/.local/share/blesh/ble.sh" --noattach' >> "$temp_rc"
+                        echo 'fi' >> "$temp_rc"
+                        added=true
+                    fi
+                fi
+            done < "$HOME/.bashrc"
+            
+            if [ "$added" = false ]; then
+                # Prepend if no interactive check line was matched
+                (
+                    echo "# Enable ble.sh"
+                    echo 'if [ -f "/usr/share/blesh/ble.sh" ]; then'
+                    echo '    source /usr/share/blesh/ble.sh --noattach'
+                    echo 'elif [ -f "$HOME/.local/share/blesh/ble.sh" ]; then'
+                    echo '    source "$HOME/.local/share/blesh/ble.sh" --noattach'
+                    echo 'fi'
+                    echo ""
+                    cat "$HOME/.bashrc"
+                ) > "$temp_rc"
+            fi
+            
+            # Append ble-attach at the end
+            echo -e "\n# Attach ble.sh\n[[ \${BLE_VERSION-} ]] && ble-attach" >> "$temp_rc"
+            
+            # Move back to ~/.bashrc
+            cp "$HOME/.bashrc" "$HOME/.bashrc.bak"
+            mv "$temp_rc" "$HOME/.bashrc"
+        fi
+    else
+        # No .bashrc exists, create a minimal one
+        echo -e "${G} [*] Creating a minimal .bashrc with ble.sh configuration...${RS}"
+        cat << EOF > "$HOME/.bashrc"
+# ~/.bashrc - Customized by Archify
+
+# If not running interactively, don't do anything
+[[ \$- != *i* ]] && return
+
+# Enable ble.sh
+if [ -f "/usr/share/blesh/ble.sh" ]; then
+    source /usr/share/blesh/ble.sh --noattach
+elif [ -f "\$HOME/.local/share/blesh/ble.sh" ]; then
+    source "\$HOME/.local/share/blesh/ble.sh" --noattach
+fi
+
+# Attach ble.sh
+[[ \${BLE_VERSION-} ]] && ble-attach
+EOF
+    fi
+    
+    echo -e "${G} [✓] ble.sh is configured! Restart your Bash terminal or run 'source ~/.bashrc' to apply.${RS}"
+    sleep 3
+    apply_plugins
+}
+
+# Download & Setup Plugins (Submenu)
+apply_plugins() {
+    banner
+    echo -e "\n ${B}Select Shell for Plugins:${RS}\n"
+    printf " ${B}[${W}01${B}]${G} Zsh (Auto-Suggestions & Syntax Highlighting)\n"
+    printf " ${B}[${W}02${B}]${G} Bash (ble.sh - Auto-Suggestions & Syntax Highlighting)\n"
+    printf " ${B}[${W}00${B}]${R} Back to Main Menu\n"
+    echo -e ""
+    echo -ne "${B} arch-th${W}@${R}root${W}:${C}~${RS}# "
+    read plugin_opt
+    case $plugin_opt in
+        1|01) apply_zsh_plugins ;;
+        2|02) apply_bash_plugins ;;
+        0|00) menu ;;
+        *) wr ;;
+    esac
 }
 
 # Install Nerd Fonts
