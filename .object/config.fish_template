@@ -8,6 +8,17 @@ set -gx CLICOLOR 1
 set -gx CLICOLOR_FORCE 1
 set -gx fish_autosuggestion_enabled 1
 
+# Load Archify colors
+if test -f "$HOME/.config/archify/colors.fish"
+    source "$HOME/.config/archify/colors.fish"
+end
+
+set -q ARCHIFY_PRIMARY; or set ARCHIFY_PRIMARY cyan
+set -q ARCHIFY_SECONDARY; or set ARCHIFY_SECONDARY blue
+set -q ARCHIFY_SUCCESS; or set ARCHIFY_SUCCESS green
+set -q ARCHIFY_ALERT; or set ARCHIFY_ALERT red
+set -q ARCHIFY_WARN; or set ARCHIFY_WARN yellow
+
 # Archify Welcome Banner
 if test -f "$HOME/.archify-banner.sh"
     bash "$HOME/.archify-banner.sh"
@@ -37,19 +48,19 @@ end
 function fish_prompt
     set -l last_status $status
     echo
-    set_color cyan
+    set_color $ARCHIFY_PRIMARY
     printf "┌─["
-    set_color blue
+    set_color $ARCHIFY_SECONDARY
     printf "󰣇 PROC"
-    set_color cyan
+    set_color $ARCHIFY_PRIMARY
     printf "@"
-    set_color blue
+    set_color $ARCHIFY_SECONDARY
     printf "ARCH"
-    set_color cyan
+    set_color $ARCHIFY_PRIMARY
     printf "]-["
-    set_color green
+    set_color $ARCHIFY_SUCCESS
     printf "%s" (prompt_pwd)
-    set_color cyan
+    set_color $ARCHIFY_PRIMARY
     printf "]"
     
     # Git integration
@@ -58,29 +69,29 @@ function fish_prompt
             set -l branch (git symbolic-ref --short HEAD 2>/dev/null)
             set -l status_count (git status --porcelain 2>/dev/null | count)
             if test $status_count -gt 0
-                set_color red
+                set_color $ARCHIFY_ALERT
                 printf "─[git:(%s*)]" $branch
             else
-                set_color green
+                set_color $ARCHIFY_SUCCESS
                 printf "─[git:(%s)]" $branch
             fi
         end
     end
     
     echo
-    set_color cyan
+    set_color $ARCHIFY_PRIMARY
     printf "└─╼ "
     if test $last_status -eq 0
-        set_color cyan
+        set_color $ARCHIFY_PRIMARY
         printf "❯"
-        set_color blue
+        set_color $ARCHIFY_SECONDARY
         printf "❯"
         set_color white
         printf "❯ "
     else
-        set_color red
+        set_color $ARCHIFY_ALERT
         printf "✗"
-        set_color blue
+        set_color $ARCHIFY_SECONDARY
         printf "❯"
         set_color white
         printf "❯ "
@@ -96,3 +107,23 @@ alias grep='grep --color=auto'
 alias pacupd='sudo pacman -Syu'
 alias pacinst='sudo pacman -S'
 alias pacrem='sudo pacman -Rns'
+
+# Modern CLI Alternatives & Aliases
+if type -q eza
+    alias ls="eza --icons --group-directories-first"
+    alias la="eza -a --icons --group-directories-first"
+    alias ll="eza -lh --icons --group-directories-first"
+end
+if type -q bat
+    alias cat="bat --style=plain --paging=never"
+end
+if type -q zoxide
+    zoxide init fish | source
+end
+
+# Atuin History Integration
+if type -q atuin
+    atuin init fish | source
+end
+
+

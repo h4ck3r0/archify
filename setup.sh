@@ -375,12 +375,35 @@ EOF
     apply_plugins
 }
 
+# Download & Setup Fish Plugins (Fisher)
+apply_fish_plugins() {
+    echo -e "${G}\n [*] Setting up Fisher and plugins for Fish...${RS}"
+    
+    if ! command -v fish &> /dev/null; then
+        echo -e "${Y} [!] Fish is not installed. Installing it first...${RS}"
+        $SUDO_CMD pacman -S --noconfirm fish
+    fi
+    
+    # Run Fisher installation via Fish shell
+    echo -e "${G} [*] Installing Fisher plugin manager...${RS}"
+    fish -c 'curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source && fisher install jorgebucaran/fisher'
+    
+    # Install plugins
+    echo -e "${G} [*] Installing Fish plugins (fzf.fish, sponge, fish-colored-man)...${RS}"
+    fish -c 'fisher install PatrickF1/fzf.fish meaningful-ooo/sponge decors/fish-colored-man'
+    
+    echo -e "${G} [✓] Fish plugins setup completed!${RS}"
+    sleep 2
+    apply_plugins
+}
+
 # Download & Setup Plugins (Submenu)
 apply_plugins() {
     banner
     echo -e "\n ${B}Select Shell for Plugins:${RS}\n"
     printf " ${B}[${W}01${B}]${G} Zsh (Auto-Suggestions & Syntax Highlighting)\n"
     printf " ${B}[${W}02${B}]${G} Bash (ble.sh - Auto-Suggestions & Syntax Highlighting)\n"
+    printf " ${B}[${W}03${B}]${G} Fish (Fisher - Auto-Suggestions & Plugins)\n"
     printf " ${B}[${W}00${B}]${R} Back to Main Menu\n"
     echo -e ""
     echo -ne "${B} arch-th${W}@${R}root${W}:${C}~${RS}# "
@@ -388,9 +411,441 @@ apply_plugins() {
     case $plugin_opt in
         1|01) apply_zsh_plugins ;;
         2|02) apply_bash_plugins ;;
+        3|03) apply_fish_plugins ;;
         0|00) menu ;;
         *) wr ;;
     esac
+}
+
+# Install Modern CLI Alternatives
+install_modern_cli() {
+    echo -e "${G}\n [*] Installing modern CLI replacements (eza, bat, zoxide, ripgrep, fzf, fd)...${RS}"
+    $SUDO_CMD pacman -S --needed --noconfirm eza bat zoxide ripgrep fzf fd
+    
+    # Configure user configs dynamically if they exist
+    echo -e "${G} [*] Configuring modern CLI tool configurations & aliases...${RS}"
+    
+    # Zsh configuration
+    if [ -f "$HOME/.zshrc" ]; then
+        if ! grep -q "Modern CLI Alternatives" "$HOME/.zshrc"; then
+            cat << 'EOF' >> "$HOME/.zshrc"
+
+# Modern CLI Alternatives & Aliases
+if command -v eza &> /dev/null; then
+    alias ls='eza --icons --group-directories-first'
+    alias la='eza -a --icons --group-directories-first'
+    alias ll='eza -lh --icons --group-directories-first'
+fi
+if command -v bat &> /dev/null; then
+    alias cat='bat --style=plain --paging=never'
+fi
+if command -v zoxide &> /dev/null; then
+    eval "$(zoxide init zsh)"
+fi
+EOF
+        fi
+    fi
+    
+    # Bash configuration
+    if [ -f "$HOME/.bashrc" ]; then
+        if ! grep -q "Modern CLI Alternatives" "$HOME/.bashrc"; then
+            if grep -q "# Attach ble.sh" "$HOME/.bashrc"; then
+                sed -i '/# Attach ble.sh/i # Modern CLI Alternatives \& Aliases\nif command -v eza \&> \/dev\/null; then\n    alias ls='\''eza --icons --group-directories-first'\''\n    alias la='\''eza -a --icons --group-directories-first'\''\n    alias ll='\''eza -lh --icons --group-directories-first'\''\nfi\nif command -v bat \&> \/dev\/null; then\n    alias cat='\''bat --style=plain --paging=never'\''\nfi\nif command -v zoxide \&> \/dev\/null; then\n    eval "$(zoxide init bash)"\nfi\n' "$HOME/.bashrc"
+            else
+                cat << 'EOF' >> "$HOME/.bashrc"
+
+# Modern CLI Alternatives & Aliases
+if command -v eza &> /dev/null; then
+    alias ls='eza --icons --group-directories-first'
+    alias la='eza -a --icons --group-directories-first'
+    alias ll='eza -lh --icons --group-directories-first'
+fi
+if command -v bat &> /dev/null; then
+    alias cat='bat --style=plain --paging=never'
+fi
+if command -v zoxide &> /dev/null; then
+    eval "$(zoxide init bash)"
+fi
+EOF
+            fi
+        fi
+    fi
+    
+    # Fish configuration
+    if [ -f "$HOME/.config/fish/config.fish" ]; then
+        if ! grep -q "Modern CLI Alternatives" "$HOME/.config/fish/config.fish"; then
+            cat << 'EOF' >> "$HOME/.config/fish/config.fish"
+
+# Modern CLI Alternatives & Aliases
+if type -q eza
+    alias ls="eza --icons --group-directories-first"
+    alias la="eza -a --icons --group-directories-first"
+    alias ll="eza -lh --icons --group-directories-first"
+end
+if type -q bat
+    alias cat="bat --style=plain --paging=never"
+end
+if type -q zoxide
+    zoxide init fish | source
+end
+EOF
+        fi
+    fi
+    
+    echo -e "${G} [✓] Modern CLI tools installed and configured!${RS}"
+    sleep 3
+    menu
+}
+
+# Helper to write .tmux.conf based on active color configurations
+write_tmux_conf() {
+    local primary="cyan"
+    local secondary="blue"
+    local success="green"
+    
+    if [ -f "$HOME/.config/archify/colors.sh" ]; then
+        source "$HOME/.config/archify/colors.sh"
+        primary="${ARCHIFY_PRIMARY_NAME:-cyan}"
+        secondary="${ARCHIFY_SECONDARY_NAME:-blue}"
+        success="${ARCHIFY_SUCCESS_NAME:-green}"
+    fi
+    
+    cat << EOF > "$HOME/.tmux.conf"
+# Custom tmux configuration by Archify
+
+# Set prefix key to Ctrl-a (instead of Ctrl-b)
+set -g prefix C-a
+unbind C-b
+bind C-a send-prefix
+
+# Start window/pane indexing at 1 (instead of 0)
+set -g base-index 1
+setw -g pane-base-index 1
+
+# Automatically renumber windows when one is closed
+set -g renumber-windows on
+
+# Enable 256 colors and true colors support
+set -g default-terminal "xterm-256color"
+set -ga terminal-overrides ",xterm-256color:Tc"
+
+# Enable mouse support
+set -g mouse on
+
+# Status bar styling
+set -g status-position bottom
+set -g status-style bg=black,fg=$primary
+set -g status-left-length 40
+set -g status-left "#[fg=$secondary,bold] 󰣇 #S #[fg=$primary,none]| "
+set -g status-right-length 100
+set -g status-right "#[fg=$success]%Y-%m-%d %H:%M #[fg=$primary]| #[fg=$secondary,bold]H4CK3R "
+
+# Window title styling
+set -g window-status-format "#[fg=$primary,none] #I:#W "
+set -g window-status-current-format "#[fg=black,bg=$primary,bold] #I:#W "
+
+# Pane borders
+set -g pane-border-style fg=colour235
+set -g pane-active-border-style fg=$primary
+EOF
+}
+
+# Setup Custom Tmux configuration
+setup_tmux() {
+    echo -e "${G}\n [*] Installing tmux...${RS}"
+    $SUDO_CMD pacman -S --needed --noconfirm tmux
+    
+    echo -e "${G} [*] Deploying custom .tmux.conf...${RS}"
+    [ -f "$HOME/.tmux.conf" ] && cp "$HOME/.tmux.conf" "$HOME/.tmux.conf.bak"
+    write_tmux_conf
+    
+    echo -e "${G} [✓] tmux successfully configured!${RS}"
+    sleep 2
+    menu
+}
+
+# Choose Theme Color Palette Preset
+choose_color_theme() {
+    banner
+    echo -e "\n ${B}Select Color Theme Accent:${RS}\n"
+    printf " ${B}[${W}01${B}]${G} Cyberpunk Neon (Magenta & Cyan)\n"
+    printf " ${B}[${W}02${B}]${G} Dracula (Purple & Green)\n"
+    printf " ${B}[${W}03${B}]${G} Nord (Cyan & Blue)\n"
+    printf " ${B}[${W}04${B}]${G} Gruvbox (Yellow & Red)\n"
+    printf " ${B}[${W}05${B}]${G} H4CK3R Default (Cyan & Blue)\n"
+    printf " ${B}[${W}00${B}]${R} Back to Main Menu\n"
+    echo -e ""
+    echo -ne "${B} arch-th${W}@${R}root${W}:${C}~${RS}# "
+    read theme_opt
+    
+    local c_sh="$HOME/.config/archify/colors.sh"
+    local c_fish="$HOME/.config/archify/colors.fish"
+    mkdir -p "$HOME/.config/archify"
+    
+    case $theme_opt in
+        1|01)
+            # Cyberpunk Neon
+            cat << 'EOF' > "$c_sh"
+export ARCHIFY_PRIMARY='35'
+export ARCHIFY_PRIMARY_NAME='magenta'
+export ARCHIFY_SECONDARY='36'
+export ARCHIFY_SECONDARY_NAME='cyan'
+export ARCHIFY_SUCCESS='32'
+export ARCHIFY_SUCCESS_NAME='green'
+export ARCHIFY_ALERT='31'
+export ARCHIFY_ALERT_NAME='red'
+export ARCHIFY_WARN='33'
+export ARCHIFY_WARN_NAME='yellow'
+EOF
+            cat << 'EOF' > "$c_fish"
+set -gx ARCHIFY_PRIMARY magenta
+set -gx ARCHIFY_SECONDARY cyan
+set -gx ARCHIFY_SUCCESS green
+set -gx ARCHIFY_ALERT red
+set -gx ARCHIFY_WARN yellow
+EOF
+            ;;
+        2|02)
+            # Dracula
+            cat << 'EOF' > "$c_sh"
+export ARCHIFY_PRIMARY='35'
+export ARCHIFY_PRIMARY_NAME='magenta'
+export ARCHIFY_SECONDARY='32'
+export ARCHIFY_SECONDARY_NAME='green'
+export ARCHIFY_SUCCESS='36'
+export ARCHIFY_SUCCESS_NAME='cyan'
+export ARCHIFY_ALERT='31'
+export ARCHIFY_ALERT_NAME='red'
+export ARCHIFY_WARN='33'
+export ARCHIFY_WARN_NAME='yellow'
+EOF
+            cat << 'EOF' > "$c_fish"
+set -gx ARCHIFY_PRIMARY magenta
+set -gx ARCHIFY_SECONDARY green
+set -gx ARCHIFY_SUCCESS cyan
+set -gx ARCHIFY_ALERT red
+set -gx ARCHIFY_WARN yellow
+EOF
+            ;;
+        3|03)
+            # Nord
+            cat << 'EOF' > "$c_sh"
+export ARCHIFY_PRIMARY='36'
+export ARCHIFY_PRIMARY_NAME='cyan'
+export ARCHIFY_SECONDARY='34'
+export ARCHIFY_SECONDARY_NAME='blue'
+export ARCHIFY_SUCCESS='32'
+export ARCHIFY_SUCCESS_NAME='green'
+export ARCHIFY_ALERT='31'
+export ARCHIFY_ALERT_NAME='red'
+export ARCHIFY_WARN='33'
+export ARCHIFY_WARN_NAME='yellow'
+EOF
+            cat << 'EOF' > "$c_fish"
+set -gx ARCHIFY_PRIMARY cyan
+set -gx ARCHIFY_SECONDARY blue
+set -gx ARCHIFY_SUCCESS green
+set -gx ARCHIFY_ALERT red
+set -gx ARCHIFY_WARN yellow
+EOF
+            ;;
+        4|04)
+            # Gruvbox
+            cat << 'EOF' > "$c_sh"
+export ARCHIFY_PRIMARY='33'
+export ARCHIFY_PRIMARY_NAME='yellow'
+export ARCHIFY_SECONDARY='31'
+export ARCHIFY_SECONDARY_NAME='red'
+export ARCHIFY_SUCCESS='32'
+export ARCHIFY_SUCCESS_NAME='green'
+export ARCHIFY_ALERT='31'
+export ARCHIFY_ALERT_NAME='red'
+export ARCHIFY_WARN='33'
+export ARCHIFY_WARN_NAME='yellow'
+EOF
+            cat << 'EOF' > "$c_fish"
+set -gx ARCHIFY_PRIMARY yellow
+set -gx ARCHIFY_SECONDARY red
+set -gx ARCHIFY_SUCCESS green
+set -gx ARCHIFY_ALERT red
+set -gx ARCHIFY_WARN yellow
+EOF
+            ;;
+        5|05)
+            # H4CK3R Default
+            cat << 'EOF' > "$c_sh"
+export ARCHIFY_PRIMARY='36'
+export ARCHIFY_PRIMARY_NAME='cyan'
+export ARCHIFY_SECONDARY='34'
+export ARCHIFY_SECONDARY_NAME='blue'
+export ARCHIFY_SUCCESS='32'
+export ARCHIFY_SUCCESS_NAME='green'
+export ARCHIFY_ALERT='31'
+export ARCHIFY_ALERT_NAME='red'
+export ARCHIFY_WARN='33'
+export ARCHIFY_WARN_NAME='yellow'
+EOF
+            cat << 'EOF' > "$c_fish"
+set -gx ARCHIFY_PRIMARY cyan
+set -gx ARCHIFY_SECONDARY blue
+set -gx ARCHIFY_SUCCESS green
+set -gx ARCHIFY_ALERT red
+set -gx ARCHIFY_WARN yellow
+EOF
+            ;;
+        0|00)
+            menu
+            return
+            ;;
+        *)
+            wr
+            return
+            ;;
+    esac
+    
+    # If tmux is configured, update the theme there too
+    if [ -f "$HOME/.tmux.conf" ]; then
+        write_tmux_conf
+    fi
+    
+    echo -e "${G} [✓] Color theme applied successfully! Reload your shell to see changes.${RS}"
+    sleep 2
+    menu
+}
+
+# Setup Atuin History Integration
+setup_atuin() {
+    echo -e "${G}\n [*] Installing Atuin shell history sync...${RS}"
+    $SUDO_CMD pacman -S --needed --noconfirm atuin
+    
+    echo -e "${G} [*] Injecting Atuin integration into user config files...${RS}"
+    
+    # Zsh configuration
+    if [ -f "$HOME/.zshrc" ]; then
+        if ! grep -q "Atuin History Integration" "$HOME/.zshrc"; then
+            cat << 'EOF' >> "$HOME/.zshrc"
+
+# Atuin History Integration
+if command -v atuin &> /dev/null; then
+    eval "$(atuin init zsh)"
+fi
+EOF
+        fi
+    fi
+    
+    # Bash configuration
+    if [ -f "$HOME/.bashrc" ]; then
+        if ! grep -q "Atuin History Integration" "$HOME/.bashrc"; then
+            if grep -q "# Attach ble.sh" "$HOME/.bashrc"; then
+                sed -i '/# Attach ble.sh/i # Atuin History Integration\nif command -v atuin \&> \/dev\/null; then\n    eval "$(atuin init bash)"\nfi\n' "$HOME/.bashrc"
+            else
+                cat << 'EOF' >> "$HOME/.bashrc"
+
+# Atuin History Integration
+if command -v atuin &> /dev/null; then
+    eval "$(atuin init bash)"
+fi
+EOF
+            fi
+        fi
+    fi
+    
+    # Fish configuration
+    if [ -f "$HOME/.config/fish/config.fish" ]; then
+        if ! grep -q "Atuin History Integration" "$HOME/.config/fish/config.fish"; then
+            cat << 'EOF' >> "$HOME/.config/fish/config.fish"
+
+# Atuin History Integration
+if type -q atuin
+    atuin init fish | source
+end
+EOF
+        fi
+    fi
+    
+    echo -e "${G} [✓] Atuin integration set up successfully!${RS}"
+    sleep 2
+    menu
+}
+
+# Setup Developer Tools (Neovim & Git)
+setup_dev_tools() {
+    banner
+    echo -e "\n ${B}Developer Tools Configuration:${RS}\n"
+    printf " ${B}[1]${G} Install & Configure Neovim (with optional LazyVim config)\n"
+    printf " ${B}[2]${G} Install & Configure Git Enhancements (diff-so-fancy)\n"
+    printf " ${B}[3]${G} Configure Both\n"
+    printf " ${B}[0]${R} Back to Main Menu\n"
+    echo -e ""
+    read -p " Select option [0-3]: " dev_opt
+    
+    case $dev_opt in
+        1)
+            configure_nvim
+            ;;
+        2)
+            configure_git
+            ;;
+        3)
+            configure_nvim
+            configure_git
+            ;;
+        0|*)
+            menu
+            return
+            ;;
+    esac
+    
+    echo -e "${G} [✓] Developer tools configured!${RS}"
+    sleep 2
+    menu
+}
+
+# Helper to configure Neovim
+configure_nvim() {
+    echo -e "${G}\n [*] Installing Neovim...${RS}"
+    $SUDO_CMD pacman -S --needed --noconfirm neovim
+    
+    read -p " Would you like to install the LazyVim theme starter config? [y/N]: " inst_lazyvim
+    if [[ "$inst_lazyvim" =~ ^[Yy]$ ]]; then
+        echo -e "${G} [*] Backing up existing Neovim configurations...${RS}"
+        [ -d "$HOME/.config/nvim" ] && mv "$HOME/.config/nvim" "$HOME/.config/nvim.bak"
+        [ -d "$HOME/.local/share/nvim" ] && mv "$HOME/.local/share/nvim" "$HOME/.local/share/nvim.bak"
+        [ -d "$HOME/.local/state/nvim" ] && mv "$HOME/.local/state/nvim" "$HOME/.local/state/nvim.bak"
+        [ -d "$HOME/.cache/nvim" ] && mv "$HOME/.cache/nvim" "$HOME/.cache/nvim.bak"
+        
+        echo -e "${G} [*] Cloning LazyVim starter config...${RS}"
+        git clone https://github.com/LazyVim/starter "$HOME/.config/nvim"
+        echo -e "${G} [✓] LazyVim config installed. Launch 'nvim' to initialize plugins.${RS}"
+    fi
+}
+
+# Helper to configure Git
+configure_git() {
+    echo -e "${G}\n [*] Installing diff-so-fancy for beautiful git diffs...${RS}"
+    $SUDO_CMD pacman -S --needed --noconfirm diff-so-fancy 2>/dev/null || yay -S --noconfirm diff-so-fancy 2>/dev/null
+    
+    echo -e "${G} [*] Configuring Git preferences (diff-so-fancy pager and colors)...${RS}"
+    git config --global color.ui true
+    if command -v diff-so-fancy &> /dev/null; then
+        git config --global core.pager "diff-so-fancy | less --tabs=4 -RFX"
+        git config --global interactive.diffFilter "diff-so-fancy --patch"
+        
+        # Color styling compatible with diff-so-fancy
+        git config --global color.diff-highlight.oldNormal "red bold"
+        git config --global color.diff-highlight.oldHighlight "red bold 52"
+        git config --global color.diff-highlight.newNormal "green bold"
+        git config --global color.diff-highlight.newHighlight "green bold 22"
+        
+        git config --global color.diff.meta "11"
+        git config --global color.diff.frag "magenta bold"
+        git config --global color.diff.func "146 bold"
+        git config --global color.diff.old "red bold"
+        git config --global color.diff.new "green bold"
+        git config --global color.diff.commit "yellow bold"
+        git config --global color.diff.whitespace "red reverse"
+    fi
+    echo -e "${G} [✓] Git configurations applied successfully!${RS}"
 }
 
 # Install Nerd Fonts
@@ -825,11 +1280,16 @@ menu() {
     printf " ${B}[${W}02${B}]${G} Apply Custom Zsh Theme & Fastfetch\n"
     printf " ${B}[${W}03${B}]${G} Apply Custom Bash Theme & Fastfetch\n"
     printf " ${B}[${W}04${B}]${G} Apply Custom Fish Theme & Fastfetch\n"
-    printf " ${B}[${W}05${B}]${G} Enable Plugins (Auto-Suggestions/Syntax)\n"
+    printf " ${B}[${W}05${B}]${G} Enable Plugins (Zsh, Bash, Fish)\n"
     printf " ${B}[${W}06${B}]${C} Install Custom Nerd Fonts\n"
     printf " ${B}[${W}07${B}]${C} Install Starship Prompt Preset\n"
-    printf " ${B}[${W}08${B}]${Y} Reset Shell Configuration\n"
-    printf " ${B}[${W}09${B}]${C} Customize Welcome Banner\n"
+    printf " ${B}[${W}08${B}]${C} Customize Welcome Banner\n"
+    printf " ${B}[${W}09${B}]${C} Install Modern CLI Utilities (eza, bat, zoxide, etc.)\n"
+    printf " ${B}[${W}10${B}]${C} Customize Tmux Multiplexer\n"
+    printf " ${B}[${W}11${B}]${C} Choose Theme Color Palette\n"
+    printf " ${B}[${W}12${B}]${C} Enable Unified Command History (Atuin)\n"
+    printf " ${B}[${W}13${B}]${C} Configure Dev Tools (Neovim & Git)\n"
+    printf " ${B}[${W}14${B}]${Y} Reset Shell Configuration\n"
     printf " ${B}[${W}00${B}]${R} Exit Script\n"
     echo -e ""
     echo -ne "${B} arch-th${W}@${R}root${W}:${C}~${RS}# "
@@ -842,8 +1302,13 @@ menu() {
         5|05) apply_plugins ;;
         6|06) install_nerd_fonts ;;
         7|07) install_starship ;;
-        8|08) reset_config ;;
-        9|09) customize_banner ;;
+        8|08) customize_banner ;;
+        9|09) install_modern_cli ;;
+        10) setup_tmux ;;
+        11) choose_color_theme ;;
+        12) setup_atuin ;;
+        13) setup_dev_tools ;;
+        14|14) reset_config ;;
         0|00) exit ;;
         *) wr ;;
     esac

@@ -1,0 +1,5 @@
+*.sh text eol=lf
+*.zsh-theme text eol=lf
+*rc_template text eol=lf
+*config_template text eol=lf
+*fish_template text eol=lf
