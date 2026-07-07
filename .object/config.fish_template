@@ -51,7 +51,9 @@ function fish_prompt
     set_color $ARCHIFY_PRIMARY
     printf "┌─["
     set_color $ARCHIFY_SECONDARY
-    printf "󰣇 PROC"
+    printf "󰣇 "
+    set_color $ARCHIFY_SUCCESS
+    printf "PROC"
     set_color $ARCHIFY_PRIMARY
     printf "@"
     set_color $ARCHIFY_SECONDARY
@@ -74,7 +76,7 @@ function fish_prompt
             else
                 set_color $ARCHIFY_SUCCESS
                 printf "─[git:(%s)]" $branch
-            fi
+            end
         end
     end
     
@@ -86,14 +88,14 @@ function fish_prompt
         printf "❯"
         set_color $ARCHIFY_SECONDARY
         printf "❯"
-        set_color white
+        set_color $ARCHIFY_SUCCESS
         printf "❯ "
     else
         set_color $ARCHIFY_ALERT
         printf "✗"
         set_color $ARCHIFY_SECONDARY
         printf "❯"
-        set_color white
+        set_color $ARCHIFY_SUCCESS
         printf "❯ "
     end
     set_color normal

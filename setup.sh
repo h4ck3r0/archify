@@ -11,10 +11,44 @@ B='\033[1;34m'
 C='\033[1;36m'
 W='\033[1;97m'
 RS='\033[0m'
+DG='\033[90m'
 
 clear
 SUDO_CMD=$(command -v sudo)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Determine Target User and Home Directory
+if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
+    TARGET_USER="$SUDO_USER"
+    TARGET_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+else
+    TARGET_USER="$(whoami)"
+    TARGET_HOME="$HOME"
+    # If run as root directly, fallback to the standard 'arch' user or first home user
+    if [ "$TARGET_USER" = "root" ]; then
+        if id "arch" &>/dev/null; then
+            TARGET_USER="arch"
+            TARGET_HOME="/home/arch"
+        elif [ -d "/home" ]; then
+            FIRST_USER=$(ls -1 /home 2>/dev/null | grep -v 'lost+found' | head -n 1)
+            if [ -n "$FIRST_USER" ]; then
+                TARGET_USER="$FIRST_USER"
+                TARGET_HOME="/home/$FIRST_USER"
+            fi
+        fi
+    fi
+fi
+
+# Ownership Correction Helper
+adjust_ownership() {
+    if [ "$TARGET_USER" != "$(whoami)" ] && [ -n "$TARGET_USER" ]; then
+        for file in "$@"; do
+            if [ -e "$file" ]; then
+                chown -R "$TARGET_USER:$TARGET_USER" "$file" 2>/dev/null || true
+            fi
+        done
+    fi
+}
 
 # Ensure we're in the script directory
 cd "$SCRIPT_DIR" 2>/dev/null
