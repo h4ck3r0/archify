@@ -269,26 +269,44 @@ apply_zsh_plugins() {
     $SUDO_CMD pacman -S --needed --noconfirm zsh-syntax-highlighting zsh-autosuggestions 2>/dev/null
     
     # Backup setup: Clone to user directories
-    ZSH_PLUGINS_DIR="$HOME/.zsh"
+    ZSH_PLUGINS_DIR="$TARGET_HOME/.zsh"
     mkdir -p "$ZSH_PLUGINS_DIR"
 
     # Syntax Highlighting
     if [ ! -d "$ZSH_PLUGINS_DIR/zsh-syntax-highlighting" ]; then
         echo -e "${G} [*] Cloning zsh-syntax-highlighting...${RS}"
-        git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$ZSH_PLUGINS_DIR/zsh-syntax-highlighting"
+        if [ "$TARGET_USER" != "$(whoami)" ]; then
+            sudo -u "$TARGET_USER" git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$ZSH_PLUGINS_DIR/zsh-syntax-highlighting"
+        else
+            git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$ZSH_PLUGINS_DIR/zsh-syntax-highlighting"
+        fi
     else
         echo -e "${G} [*] Updating zsh-syntax-highlighting...${RS}"
-        cd "$ZSH_PLUGINS_DIR/zsh-syntax-highlighting" && git pull && cd "$SCRIPT_DIR"
+        if [ "$TARGET_USER" != "$(whoami)" ]; then
+            sudo -u "$TARGET_USER" sh -c "cd '$ZSH_PLUGINS_DIR/zsh-syntax-highlighting' && git pull"
+        else
+            cd "$ZSH_PLUGINS_DIR/zsh-syntax-highlighting" && git pull && cd "$SCRIPT_DIR"
+        fi
     fi
 
     # Autosuggestions
     if [ ! -d "$ZSH_PLUGINS_DIR/zsh-autosuggestions" ]; then
         echo -e "${G} [*] Cloning zsh-autosuggestions...${RS}"
-        git clone https://github.com/zsh-users/zsh-autosuggestions "$ZSH_PLUGINS_DIR/zsh-autosuggestions"
+        if [ "$TARGET_USER" != "$(whoami)" ]; then
+            sudo -u "$TARGET_USER" git clone https://github.com/zsh-users/zsh-autosuggestions "$ZSH_PLUGINS_DIR/zsh-autosuggestions"
+        else
+            git clone https://github.com/zsh-users/zsh-autosuggestions "$ZSH_PLUGINS_DIR/zsh-autosuggestions"
+        fi
     else
         echo -e "${G} [*] Updating zsh-autosuggestions...${RS}"
-        cd "$ZSH_PLUGINS_DIR/zsh-autosuggestions" && git pull && cd "$SCRIPT_DIR"
+        if [ "$TARGET_USER" != "$(whoami)" ]; then
+            sudo -u "$TARGET_USER" sh -c "cd '$ZSH_PLUGINS_DIR/zsh-autosuggestions' && git pull"
+        else
+            cd "$ZSH_PLUGINS_DIR/zsh-autosuggestions" && git pull && cd "$SCRIPT_DIR"
+        fi
     fi
+
+    adjust_ownership "$ZSH_PLUGINS_DIR"
 
     echo -e "${G} [✓] Plugins ready! Reload Zsh to verify.${RS}"
     sleep 2
@@ -306,9 +324,9 @@ apply_bash_plugins() {
     if [ -f "/usr/share/blesh/ble.sh" ]; then
         blesh_installed=true
         blesh_path="/usr/share/blesh/ble.sh"
-    elif [ -f "$HOME/.local/share/blesh/ble.sh" ]; then
+    elif [ -f "$TARGET_HOME/.local/share/blesh/ble.sh" ]; then
         blesh_installed=true
-        blesh_path="$HOME/.local/share/blesh/ble.sh"
+        blesh_path="$TARGET_HOME/.local/share/blesh/ble.sh"
     fi
     
     if [ "$blesh_installed" = true ]; then
@@ -317,10 +335,18 @@ apply_bash_plugins() {
         # Try installing via AUR helper first
         if command -v yay &> /dev/null; then
             echo -e "${G} [*] Installing blesh via yay...${RS}"
-            yay -S --needed --noconfirm blesh
+            if [ "$TARGET_USER" != "$(whoami)" ]; then
+                sudo -u "$TARGET_USER" yay -S --needed --noconfirm blesh
+            else
+                yay -S --needed --noconfirm blesh
+            fi
         elif command -v paru &> /dev/null; then
             echo -e "${G} [*] Installing blesh via paru...${RS}"
-            paru -S --needed --noconfirm blesh
+            if [ "$TARGET_USER" != "$(whoami)" ]; then
+                sudo -u "$TARGET_USER" paru -S --needed --noconfirm blesh
+            else
+                paru -S --needed --noconfirm blesh
+            fi
         fi
         
         # Re-check if AUR installation succeeded
@@ -332,17 +358,35 @@ apply_bash_plugins() {
         # Fallback to nightly pre-built download if AUR failed or wasn't available
         if [ "$blesh_installed" = false ]; then
             echo -e "${Y} [*] AUR helper not found or install failed. Downloading pre-built ble.sh nightly...${RS}"
-            local blesh_dir="$HOME/.local/share/blesh"
-            mkdir -p "$blesh_dir"
+            local blesh_dir="$TARGET_HOME/.local/share/blesh"
+            if [ "$TARGET_USER" != "$(whoami)" ]; then
+                sudo -u "$TARGET_USER" mkdir -p "$blesh_dir"
+            else
+                mkdir -p "$blesh_dir"
+            fi
             if command -v curl &>/dev/null && command -v tar &>/dev/null; then
-                if curl -L https://github.com/akinomyoga/ble.sh/releases/download/nightly/ble-nightly.tar.xz | tar xJf - -C "$blesh_dir" --strip-components=1; then
-                    blesh_installed=true
-                    blesh_path="$blesh_dir/ble.sh"
+                if [ "$TARGET_USER" != "$(whoami)" ]; then
+                    if sudo -u "$TARGET_USER" curl -L https://github.com/akinomyoga/ble.sh/releases/download/nightly/ble-nightly.tar.xz | sudo -u "$TARGET_USER" tar xJf - -C "$blesh_dir" --strip-components=1; then
+                        blesh_installed=true
+                        blesh_path="$blesh_dir/ble.sh"
+                    fi
+                else
+                    if curl -L https://github.com/akinomyoga/ble.sh/releases/download/nightly/ble-nightly.tar.xz | tar xJf - -C "$blesh_dir" --strip-components=1; then
+                        blesh_installed=true
+                        blesh_path="$blesh_dir/ble.sh"
+                    fi
                 fi
             elif command -v wget &>/dev/null && command -v tar &>/dev/null; then
-                if wget -O - https://github.com/akinomyoga/ble.sh/releases/download/nightly/ble-nightly.tar.xz | tar xJf - -C "$blesh_dir" --strip-components=1; then
-                    blesh_installed=true
-                    blesh_path="$blesh_dir/ble.sh"
+                if [ "$TARGET_USER" != "$(whoami)" ]; then
+                    if sudo -u "$TARGET_USER" wget -O - https://github.com/akinomyoga/ble.sh/releases/download/nightly/ble-nightly.tar.xz | sudo -u "$TARGET_USER" tar xJf - -C "$blesh_dir" --strip-components=1; then
+                        blesh_installed=true
+                        blesh_path="$blesh_dir/ble.sh"
+                    fi
+                else
+                    if wget -O - https://github.com/akinomyoga/ble.sh/releases/download/nightly/ble-nightly.tar.xz | tar xJf - -C "$blesh_dir" --strip-components=1; then
+                        blesh_installed=true
+                        blesh_path="$blesh_dir/ble.sh"
+                    fi
                 fi
             fi
         fi
@@ -356,8 +400,8 @@ apply_bash_plugins() {
     fi
     
     # Configure in ~/.bashrc
-    if [ -f "$HOME/.bashrc" ]; then
-        if ! grep -q "ble.sh" "$HOME/.bashrc"; then
+    if [ -f "$TARGET_HOME/.bashrc" ]; then
+        if ! grep -q "ble.sh" "$TARGET_HOME/.bashrc"; then
             echo -e "${G} [*] Adding ble.sh to .bashrc...${RS}"
             
             # Temporary file to build new .bashrc
@@ -379,7 +423,7 @@ apply_bash_plugins() {
                         added=true
                     fi
                 fi
-            done < "$HOME/.bashrc"
+            done < "$TARGET_HOME/.bashrc"
             
             if [ "$added" = false ]; then
                 # Prepend if no interactive check line was matched
@@ -391,7 +435,7 @@ apply_bash_plugins() {
                     echo '    source "$HOME/.local/share/blesh/ble.sh" --noattach'
                     echo 'fi'
                     echo ""
-                    cat "$HOME/.bashrc"
+                    cat "$TARGET_HOME/.bashrc"
                 ) > "$temp_rc"
             fi
             
@@ -399,13 +443,13 @@ apply_bash_plugins() {
             echo -e "\n# Attach ble.sh\n[[ \${BLE_VERSION-} ]] && ble-attach" >> "$temp_rc"
             
             # Move back to ~/.bashrc
-            cp "$HOME/.bashrc" "$HOME/.bashrc.bak"
-            mv "$temp_rc" "$HOME/.bashrc"
+            cp "$TARGET_HOME/.bashrc" "$TARGET_HOME/.bashrc.bak"
+            mv "$temp_rc" "$TARGET_HOME/.bashrc"
         fi
     else
         # No .bashrc exists, create a minimal one
         echo -e "${G} [*] Creating a minimal .bashrc with ble.sh configuration...${RS}"
-        cat << EOF > "$HOME/.bashrc"
+        cat << EOF > "$TARGET_HOME/.bashrc"
 # ~/.bashrc - Customized by Archify
 
 # If not running interactively, don't do anything
@@ -423,6 +467,8 @@ fi
 EOF
     fi
     
+    adjust_ownership "$TARGET_HOME/.bashrc" "$TARGET_HOME/.bashrc.bak" "$TARGET_HOME/.local/share/blesh"
+    
     echo -e "${G} [✓] ble.sh is configured! Restart your Bash terminal or run 'source ~/.bashrc' to apply.${RS}"
     sleep 3
     apply_plugins
@@ -439,11 +485,17 @@ apply_fish_plugins() {
     
     # Run Fisher installation via Fish shell
     echo -e "${G} [*] Installing Fisher plugin manager...${RS}"
-    fish -c 'curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source && fisher install jorgebucaran/fisher'
+    if [ "$TARGET_USER" != "$(whoami)" ]; then
+        sudo -u "$TARGET_USER" fish -c 'curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source && fisher install jorgebucaran/fisher'
+        echo -e "${G} [*] Installing Fish plugins (fzf.fish, sponge, fish-colored-man)...${RS}"
+        sudo -u "$TARGET_USER" fish -c 'fisher install PatrickF1/fzf.fish meaningful-ooo/sponge decors/fish-colored-man'
+    else
+        fish -c 'curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source && fisher install jorgebucaran/fisher'
+        echo -e "${G} [*] Installing Fish plugins (fzf.fish, sponge, fish-colored-man)...${RS}"
+        fish -c 'fisher install PatrickF1/fzf.fish meaningful-ooo/sponge decors/fish-colored-man'
+    fi
     
-    # Install plugins
-    echo -e "${G} [*] Installing Fish plugins (fzf.fish, sponge, fish-colored-man)...${RS}"
-    fish -c 'fisher install PatrickF1/fzf.fish meaningful-ooo/sponge decors/fish-colored-man'
+    adjust_ownership "$TARGET_HOME/.config/fish"
     
     echo -e "${G} [✓] Fish plugins setup completed!${RS}"
     sleep 2
@@ -453,12 +505,12 @@ apply_fish_plugins() {
 # Download & Setup Plugins (Submenu)
 apply_plugins() {
     banner
-    echo -e "\n ${B}Select Shell for Plugins:${RS}\n"
-    printf " ${B}[${W}01${B}]${G} Zsh (Auto-Suggestions & Syntax Highlighting)\n"
-    printf " ${B}[${W}02${B}]${G} Bash (ble.sh - Auto-Suggestions & Syntax Highlighting)\n"
-    printf " ${B}[${W}03${B}]${G} Fish (Fisher - Auto-Suggestions & Plugins)\n"
-    printf " ${B}[${W}00${B}]${R} Back to Main Menu\n"
-    echo -e ""
+    echo -e "\n ${C}─── Shell Plugins Configuration ───${RS}"
+    printf "  ${DG}[${C}01${DG}]${W} Zsh (Auto-Suggestions & Syntax Highlighting)\n"
+    printf "  ${DG}[${C}02${DG}]${W} Bash (ble.sh - Auto-Suggestions & Syntax Highlighting)\n"
+    printf "  ${DG}[${C}03${DG}]${W} Fish (Fisher - Auto-Suggestions & Plugins)\n"
+    printf "  ${DG}[${C}00${DG}]${R} Back to Main Menu\n"
+    echo -e " ${DG}──────────────────────────────────────────────────${RS}"
     echo -ne "${B} arch-th${W}@${R}root${W}:${C}~${RS}# "
     read plugin_opt
     case $plugin_opt in
@@ -479,9 +531,9 @@ install_modern_cli() {
     echo -e "${G} [*] Configuring modern CLI tool configurations & aliases...${RS}"
     
     # Zsh configuration
-    if [ -f "$HOME/.zshrc" ]; then
-        if ! grep -q "Modern CLI Alternatives" "$HOME/.zshrc"; then
-            cat << 'EOF' >> "$HOME/.zshrc"
+    if [ -f "$TARGET_HOME/.zshrc" ]; then
+        if ! grep -q "Modern CLI Alternatives" "$TARGET_HOME/.zshrc"; then
+            cat << 'EOF' >> "$TARGET_HOME/.zshrc"
 
 # Modern CLI Alternatives & Aliases
 if command -v eza &> /dev/null; then
@@ -500,12 +552,12 @@ EOF
     fi
     
     # Bash configuration
-    if [ -f "$HOME/.bashrc" ]; then
-        if ! grep -q "Modern CLI Alternatives" "$HOME/.bashrc"; then
-            if grep -q "# Attach ble.sh" "$HOME/.bashrc"; then
-                sed -i '/# Attach ble.sh/i # Modern CLI Alternatives \& Aliases\nif command -v eza \&> \/dev\/null; then\n    alias ls='\''eza --icons --group-directories-first'\''\n    alias la='\''eza -a --icons --group-directories-first'\''\n    alias ll='\''eza -lh --icons --group-directories-first'\''\nfi\nif command -v bat \&> \/dev\/null; then\n    alias cat='\''bat --style=plain --paging=never'\''\nfi\nif command -v zoxide \&> \/dev\/null; then\n    eval "$(zoxide init bash)"\nfi\n' "$HOME/.bashrc"
+    if [ -f "$TARGET_HOME/.bashrc" ]; then
+        if ! grep -q "Modern CLI Alternatives" "$TARGET_HOME/.bashrc"; then
+            if grep -q "# Attach ble.sh" "$TARGET_HOME/.bashrc"; then
+                sed -i '/# Attach ble.sh/i # Modern CLI Alternatives \& Aliases\nif command -v eza \&> \/dev\/null; then\n    alias ls='\''eza --icons --group-directories-first'\''\n    alias la='\''eza -a --icons --group-directories-first'\''\n    alias ll='\''eza -lh --icons --group-directories-first'\''\nfi\nif command -v bat \&> \/dev\/null; then\n    alias cat='\''bat --style=plain --paging=never'\''\nfi\nif command -v zoxide \&> \/dev\/null; then\n    eval "$(zoxide init bash)"\nfi\n' "$TARGET_HOME/.bashrc"
             else
-                cat << 'EOF' >> "$HOME/.bashrc"
+                cat << 'EOF' >> "$TARGET_HOME/.bashrc"
 
 # Modern CLI Alternatives & Aliases
 if command -v eza &> /dev/null; then
@@ -525,9 +577,9 @@ EOF
     fi
     
     # Fish configuration
-    if [ -f "$HOME/.config/fish/config.fish" ]; then
-        if ! grep -q "Modern CLI Alternatives" "$HOME/.config/fish/config.fish"; then
-            cat << 'EOF' >> "$HOME/.config/fish/config.fish"
+    if [ -f "$TARGET_HOME/.config/fish/config.fish" ]; then
+        if ! grep -q "Modern CLI Alternatives" "$TARGET_HOME/.config/fish/config.fish"; then
+            cat << 'EOF' >> "$TARGET_HOME/.config/fish/config.fish"
 
 # Modern CLI Alternatives & Aliases
 if type -q eza
@@ -545,6 +597,8 @@ EOF
         fi
     fi
     
+    adjust_ownership "$TARGET_HOME/.zshrc" "$TARGET_HOME/.bashrc" "$TARGET_HOME/.config/fish/config.fish"
+    
     echo -e "${G} [✓] Modern CLI tools installed and configured!${RS}"
     sleep 3
     menu
@@ -556,14 +610,14 @@ write_tmux_conf() {
     local secondary="blue"
     local success="green"
     
-    if [ -f "$HOME/.config/archify/colors.sh" ]; then
-        source "$HOME/.config/archify/colors.sh"
+    if [ -f "$TARGET_HOME/.config/archify/colors.sh" ]; then
+        source "$TARGET_HOME/.config/archify/colors.sh"
         primary="${ARCHIFY_PRIMARY_NAME:-cyan}"
         secondary="${ARCHIFY_SECONDARY_NAME:-blue}"
         success="${ARCHIFY_SUCCESS_NAME:-green}"
     fi
     
-    cat << EOF > "$HOME/.tmux.conf"
+    cat << EOF > "$TARGET_HOME/.tmux.conf"
 # Custom tmux configuration by Archify
 
 # Set prefix key to Ctrl-a (instead of Ctrl-b)
@@ -609,10 +663,37 @@ setup_tmux() {
     $SUDO_CMD pacman -S --needed --noconfirm tmux
     
     echo -e "${G} [*] Deploying custom .tmux.conf...${RS}"
-    [ -f "$HOME/.tmux.conf" ] && cp "$HOME/.tmux.conf" "$HOME/.tmux.conf.bak"
+    [ -f "$TARGET_HOME/.tmux.conf" ] && cp "$TARGET_HOME/.tmux.conf" "$TARGET_HOME/.tmux.conf.bak"
     write_tmux_conf
     
+    adjust_ownership "$TARGET_HOME/.tmux.conf" "$TARGET_HOME/.tmux.conf.bak"
     echo -e "${G} [✓] tmux successfully configured!${RS}"
+
+    echo -e "${C}"
+    read -p " Would you like to enable Tmux auto-start on terminal launch? [y/N]: " tmux_auto
+    if [[ "$tmux_auto" =~ ^[Yy]$ ]]; then
+        # Add to .zshrc
+        if [ -f "$TARGET_HOME/.zshrc" ]; then
+            if ! grep -q "exec tmux" "$TARGET_HOME/.zshrc"; then
+                echo -e "\n# Auto-start Tmux\nif [ -z \"\$TMUX\" ] && [ -n \"\$PS1\" ]; then\n    exec tmux\nfi" >> "$TARGET_HOME/.zshrc"
+            fi
+        fi
+        # Add to .bashrc
+        if [ -f "$TARGET_HOME/.bashrc" ]; then
+            if ! grep -q "exec tmux" "$TARGET_HOME/.bashrc"; then
+                echo -e "\n# Auto-start Tmux\nif [ -z \"\$TMUX\" ] && [ -n \"\$PS1\" ]; then\n    exec tmux\nfi" >> "$TARGET_HOME/.bashrc"
+            fi
+        fi
+        # Add to config.fish
+        if [ -d "$TARGET_HOME/.config/fish" ] && [ -f "$TARGET_HOME/.config/fish/config.fish" ]; then
+            if ! grep -q "exec tmux" "$TARGET_HOME/.config/fish/config.fish"; then
+                echo -e "\n# Auto-start Tmux\nif not set -q TMUX; and status is-interactive\n    exec tmux\nend" >> "$TARGET_HOME/.config/fish/config.fish"
+            fi
+        fi
+        echo -e "${G} [✓] Tmux auto-start enabled!${RS}"
+        adjust_ownership "$TARGET_HOME/.zshrc" "$TARGET_HOME/.bashrc" "$TARGET_HOME/.config/fish/config.fish"
+    fi
+    
     sleep 2
     menu
 }
@@ -625,15 +706,17 @@ choose_color_theme() {
     printf " ${B}[${W}02${B}]${G} Dracula (Purple & Green)\n"
     printf " ${B}[${W}03${B}]${G} Nord (Cyan & Blue)\n"
     printf " ${B}[${W}04${B}]${G} Gruvbox (Yellow & Red)\n"
-    printf " ${B}[${W}05${B}]${G} H4CK3R Default (Cyan & Blue)\n"
+    printf " ${B}[${W}05${B}]${G} H4CK3R Default (Blue & Cyan)\n"
+    printf " ${B}[${W}06${B}]${G} Stealth Matrix (Green & Yellow)\n"
+    printf " ${B}[${W}07${B}]${G} Ice Cold (Tech Blue & Cyan)\n"
     printf " ${B}[${W}00${B}]${R} Back to Main Menu\n"
     echo -e ""
     echo -ne "${B} arch-th${W}@${R}root${W}:${C}~${RS}# "
     read theme_opt
     
-    local c_sh="$HOME/.config/archify/colors.sh"
-    local c_fish="$HOME/.config/archify/colors.fish"
-    mkdir -p "$HOME/.config/archify"
+    local c_sh="$TARGET_HOME/.config/archify/colors.sh"
+    local c_fish="$TARGET_HOME/.config/archify/colors.fish"
+    mkdir -p "$TARGET_HOME/.config/archify"
     
     case $theme_opt in
         1|01)
@@ -725,12 +808,12 @@ set -gx ARCHIFY_WARN yellow
 EOF
             ;;
         5|05)
-            # H4CK3R Default
+            # H4CK3R Default (Blue & Cyan)
             cat << 'EOF' > "$c_sh"
-export ARCHIFY_PRIMARY='36'
-export ARCHIFY_PRIMARY_NAME='cyan'
-export ARCHIFY_SECONDARY='34'
-export ARCHIFY_SECONDARY_NAME='blue'
+export ARCHIFY_PRIMARY='34'
+export ARCHIFY_PRIMARY_NAME='blue'
+export ARCHIFY_SECONDARY='36'
+export ARCHIFY_SECONDARY_NAME='cyan'
 export ARCHIFY_SUCCESS='32'
 export ARCHIFY_SUCCESS_NAME='green'
 export ARCHIFY_ALERT='31'
@@ -739,9 +822,53 @@ export ARCHIFY_WARN='33'
 export ARCHIFY_WARN_NAME='yellow'
 EOF
             cat << 'EOF' > "$c_fish"
-set -gx ARCHIFY_PRIMARY cyan
-set -gx ARCHIFY_SECONDARY blue
+set -gx ARCHIFY_PRIMARY blue
+set -gx ARCHIFY_SECONDARY cyan
 set -gx ARCHIFY_SUCCESS green
+set -gx ARCHIFY_ALERT red
+set -gx ARCHIFY_WARN yellow
+EOF
+            ;;
+        6|06)
+            # Stealth Matrix (Green & Yellow)
+            cat << 'EOF' > "$c_sh"
+export ARCHIFY_PRIMARY='32'
+export ARCHIFY_PRIMARY_NAME='green'
+export ARCHIFY_SECONDARY='33'
+export ARCHIFY_SECONDARY_NAME='yellow'
+export ARCHIFY_SUCCESS='37'
+export ARCHIFY_SUCCESS_NAME='white'
+export ARCHIFY_ALERT='31'
+export ARCHIFY_ALERT_NAME='red'
+export ARCHIFY_WARN='33'
+export ARCHIFY_WARN_NAME='yellow'
+EOF
+            cat << 'EOF' > "$c_fish"
+set -gx ARCHIFY_PRIMARY green
+set -gx ARCHIFY_SECONDARY yellow
+set -gx ARCHIFY_SUCCESS white
+set -gx ARCHIFY_ALERT red
+set -gx ARCHIFY_WARN yellow
+EOF
+            ;;
+        7|07)
+            # Ice Cold (Tech Blue & Cyan)
+            cat << 'EOF' > "$c_sh"
+export ARCHIFY_PRIMARY='34'
+export ARCHIFY_PRIMARY_NAME='blue'
+export ARCHIFY_SECONDARY='36'
+export ARCHIFY_SECONDARY_NAME='cyan'
+export ARCHIFY_SUCCESS='37'
+export ARCHIFY_SUCCESS_NAME='white'
+export ARCHIFY_ALERT='31'
+export ARCHIFY_ALERT_NAME='red'
+export ARCHIFY_WARN='33'
+export ARCHIFY_WARN_NAME='yellow'
+EOF
+            cat << 'EOF' > "$c_fish"
+set -gx ARCHIFY_PRIMARY blue
+set -gx ARCHIFY_SECONDARY cyan
+set -gx ARCHIFY_SUCCESS white
 set -gx ARCHIFY_ALERT red
 set -gx ARCHIFY_WARN yellow
 EOF
@@ -757,9 +884,22 @@ EOF
     esac
     
     # If tmux is configured, update the theme there too
-    if [ -f "$HOME/.tmux.conf" ]; then
+    if [ -f "$TARGET_HOME/.tmux.conf" ]; then
         write_tmux_conf
+        if command -v tmux &>/dev/null && tmux info &>/dev/null; then
+            tmux source-file "$TARGET_HOME/.tmux.conf" 2>/dev/null || true
+        fi
     fi
+    
+    # If Starship is configured, update the theme there too
+    if [ -f "$TARGET_HOME/.config/starship.toml" ]; then
+        local existing_name="H4CK3R"
+        existing_name=$(grep -A 4 "^\[username\]" "$TARGET_HOME/.config/starship.toml" 2>/dev/null | grep "format =" | sed -E 's/.*format = "\[([^]]*)\]\(.*/\1/')
+        existing_name=${existing_name:-H4CK3R}
+        write_starship_config "$existing_name"
+    fi
+    
+    adjust_ownership "$TARGET_HOME/.config/archify" "$TARGET_HOME/.tmux.conf" "$TARGET_HOME/.config/starship.toml"
     
     echo -e "${G} [✓] Color theme applied successfully! Reload your shell to see changes.${RS}"
     sleep 2
@@ -774,9 +914,9 @@ setup_atuin() {
     echo -e "${G} [*] Injecting Atuin integration into user config files...${RS}"
     
     # Zsh configuration
-    if [ -f "$HOME/.zshrc" ]; then
-        if ! grep -q "Atuin History Integration" "$HOME/.zshrc"; then
-            cat << 'EOF' >> "$HOME/.zshrc"
+    if [ -f "$TARGET_HOME/.zshrc" ]; then
+        if ! grep -q "Atuin History Integration" "$TARGET_HOME/.zshrc"; then
+            cat << 'EOF' >> "$TARGET_HOME/.zshrc"
 
 # Atuin History Integration
 if command -v atuin &> /dev/null; then
@@ -787,12 +927,12 @@ EOF
     fi
     
     # Bash configuration
-    if [ -f "$HOME/.bashrc" ]; then
-        if ! grep -q "Atuin History Integration" "$HOME/.bashrc"; then
-            if grep -q "# Attach ble.sh" "$HOME/.bashrc"; then
-                sed -i '/# Attach ble.sh/i # Atuin History Integration\nif command -v atuin \&> \/dev\/null; then\n    eval "$(atuin init bash)"\nfi\n' "$HOME/.bashrc"
+    if [ -f "$TARGET_HOME/.bashrc" ]; then
+        if ! grep -q "Atuin History Integration" "$TARGET_HOME/.bashrc"; then
+            if grep -q "# Attach ble.sh" "$TARGET_HOME/.bashrc"; then
+                sed -i '/# Attach ble.sh/i # Atuin History Integration\nif command -v atuin \&> \/dev\/null; then\n    eval "$(atuin init bash)"\nfi\n' "$TARGET_HOME/.bashrc"
             else
-                cat << 'EOF' >> "$HOME/.bashrc"
+                cat << 'EOF' >> "$TARGET_HOME/.bashrc"
 
 # Atuin History Integration
 if command -v atuin &> /dev/null; then
@@ -804,9 +944,9 @@ EOF
     fi
     
     # Fish configuration
-    if [ -f "$HOME/.config/fish/config.fish" ]; then
-        if ! grep -q "Atuin History Integration" "$HOME/.config/fish/config.fish"; then
-            cat << 'EOF' >> "$HOME/.config/fish/config.fish"
+    if [ -f "$TARGET_HOME/.config/fish/config.fish" ]; then
+        if ! grep -q "Atuin History Integration" "$TARGET_HOME/.config/fish/config.fish"; then
+            cat << 'EOF' >> "$TARGET_HOME/.config/fish/config.fish"
 
 # Atuin History Integration
 if type -q atuin
@@ -816,6 +956,8 @@ EOF
         fi
     fi
     
+    adjust_ownership "$TARGET_HOME/.zshrc" "$TARGET_HOME/.bashrc" "$TARGET_HOME/.config/fish"
+    
     echo -e "${G} [✓] Atuin integration set up successfully!${RS}"
     sleep 2
     menu
@@ -824,31 +966,37 @@ EOF
 # Setup Developer Tools (Neovim & Git)
 setup_dev_tools() {
     banner
-    echo -e "\n ${B}Developer Tools Configuration:${RS}\n"
-    printf " ${B}[1]${G} Install & Configure Neovim (with optional LazyVim config)\n"
-    printf " ${B}[2]${G} Install & Configure Git Enhancements (diff-so-fancy)\n"
-    printf " ${B}[3]${G} Configure Both\n"
-    printf " ${B}[0]${R} Back to Main Menu\n"
-    echo -e ""
-    read -p " Select option [0-3]: " dev_opt
+    echo -e "\n ${C}─── Developer Tools Configuration ───${RS}"
+    printf "  ${DG}[${C}01${DG}]${W} Install & Configure Neovim (with optional LazyVim config)\n"
+    printf "  ${DG}[${C}02${DG}]${W} Install & Configure Git Enhancements (diff-so-fancy)\n"
+    printf "  ${DG}[${C}03${DG}]${W} Configure Both\n"
+    printf "  ${DG}[${C}00${DG}]${R} Back to Main Menu\n"
+    echo -e " ${DG}──────────────────────────────────────────────────${RS}"
+    echo -ne "${B} arch-th${W}@${R}root${W}:${C}~${RS}# "
+    read dev_opt
     
     case $dev_opt in
-        1)
+        1|01)
             configure_nvim
             ;;
-        2)
+        2|02)
             configure_git
             ;;
-        3)
+        3|03)
             configure_nvim
             configure_git
             ;;
-        0|*)
+        0|00)
             menu
+            return
+            ;;
+        *)
+            wr
             return
             ;;
     esac
     
+    adjust_ownership "$TARGET_HOME/.config/nvim" "$TARGET_HOME/.local/share/nvim" "$TARGET_HOME/.local/state/nvim" "$TARGET_HOME/.cache/nvim"
     echo -e "${G} [✓] Developer tools configured!${RS}"
     sleep 2
     menu
@@ -862,13 +1010,17 @@ configure_nvim() {
     read -p " Would you like to install the LazyVim theme starter config? [y/N]: " inst_lazyvim
     if [[ "$inst_lazyvim" =~ ^[Yy]$ ]]; then
         echo -e "${G} [*] Backing up existing Neovim configurations...${RS}"
-        [ -d "$HOME/.config/nvim" ] && mv "$HOME/.config/nvim" "$HOME/.config/nvim.bak"
-        [ -d "$HOME/.local/share/nvim" ] && mv "$HOME/.local/share/nvim" "$HOME/.local/share/nvim.bak"
-        [ -d "$HOME/.local/state/nvim" ] && mv "$HOME/.local/state/nvim" "$HOME/.local/state/nvim.bak"
-        [ -d "$HOME/.cache/nvim" ] && mv "$HOME/.cache/nvim" "$HOME/.cache/nvim.bak"
+        [ -d "$TARGET_HOME/.config/nvim" ] && mv "$TARGET_HOME/.config/nvim" "$TARGET_HOME/.config/nvim.bak"
+        [ -d "$TARGET_HOME/.local/share/nvim" ] && mv "$TARGET_HOME/.local/share/nvim" "$TARGET_HOME/.local/share/nvim.bak"
+        [ -d "$TARGET_HOME/.local/state/nvim" ] && mv "$TARGET_HOME/.local/state/nvim" "$TARGET_HOME/.local/state/nvim.bak"
+        [ -d "$TARGET_HOME/.cache/nvim" ] && mv "$TARGET_HOME/.cache/nvim" "$TARGET_HOME/.cache/nvim.bak"
         
         echo -e "${G} [*] Cloning LazyVim starter config...${RS}"
-        git clone https://github.com/LazyVim/starter "$HOME/.config/nvim"
+        if [ "$TARGET_USER" != "$(whoami)" ]; then
+            sudo -u "$TARGET_USER" git clone https://github.com/LazyVim/starter "$TARGET_HOME/.config/nvim"
+        else
+            git clone https://github.com/LazyVim/starter "$TARGET_HOME/.config/nvim"
+        fi
         echo -e "${G} [✓] LazyVim config installed. Launch 'nvim' to initialize plugins.${RS}"
     fi
 }
@@ -879,32 +1031,37 @@ configure_git() {
     $SUDO_CMD pacman -S --needed --noconfirm diff-so-fancy 2>/dev/null || yay -S --noconfirm diff-so-fancy 2>/dev/null
     
     echo -e "${G} [*] Configuring Git preferences (diff-so-fancy pager and colors)...${RS}"
-    git config --global color.ui true
+    local git_cmd="git"
+    if [ "$TARGET_USER" != "$(whoami)" ]; then
+        git_cmd="sudo -u $TARGET_USER git"
+    fi
+    $git_cmd config --global color.ui true
     if command -v diff-so-fancy &> /dev/null; then
-        git config --global core.pager "diff-so-fancy | less --tabs=4 -RFX"
-        git config --global interactive.diffFilter "diff-so-fancy --patch"
+        $git_cmd config --global core.pager "diff-so-fancy | less --tabs=4 -RFX"
+        $git_cmd config --global interactive.diffFilter "diff-so-fancy --patch"
         
         # Color styling compatible with diff-so-fancy
-        git config --global color.diff-highlight.oldNormal "red bold"
-        git config --global color.diff-highlight.oldHighlight "red bold 52"
-        git config --global color.diff-highlight.newNormal "green bold"
-        git config --global color.diff-highlight.newHighlight "green bold 22"
+        $git_cmd config --global color.diff-highlight.oldNormal "red bold"
+        $git_cmd config --global color.diff-highlight.oldHighlight "red bold 52"
+        $git_cmd config --global color.diff-highlight.newNormal "green bold"
+        $git_cmd config --global color.diff-highlight.newHighlight "green bold 22"
         
-        git config --global color.diff.meta "11"
-        git config --global color.diff.frag "magenta bold"
-        git config --global color.diff.func "146 bold"
-        git config --global color.diff.old "red bold"
-        git config --global color.diff.new "green bold"
-        git config --global color.diff.commit "yellow bold"
-        git config --global color.diff.whitespace "red reverse"
+        $git_cmd config --global color.diff.meta "11"
+        $git_cmd config --global color.diff.frag "magenta bold"
+        $git_cmd config --global color.diff.func "146 bold"
+        $git_cmd config --global color.diff.old "red bold"
+        $git_cmd config --global color.diff.new "green bold"
+        $git_cmd config --global color.diff.commit "yellow bold"
+        $git_cmd config --global color.diff.whitespace "red reverse"
     fi
+    [ -f "$TARGET_HOME/.gitconfig" ] && adjust_ownership "$TARGET_HOME/.gitconfig"
     echo -e "${G} [✓] Git configurations applied successfully!${RS}"
 }
 
 # Install Nerd Fonts
 install_nerd_fonts() {
     echo -e "${G}\n [*] Preparing to install Nerd Fonts...${RS}"
-    FONT_DIR="$HOME/.local/share/fonts"
+    FONT_DIR="$TARGET_HOME/.local/share/fonts"
     mkdir -p "$FONT_DIR"
     
     echo -e "${C} Choose font to install:${RS}"
@@ -938,6 +1095,7 @@ install_nerd_fonts() {
     echo -e "${G} [*] Rebuilding font cache...${RS}"
     fc-cache -fv &>/dev/null || $SUDO_CMD fc-cache -fv &>/dev/null
 
+    adjust_ownership "$FONT_DIR"
     echo -e "${G} [✓] Nerd Font files installed!${RS}"
     
     # Detect terminal emulator and give instructions
@@ -995,69 +1153,40 @@ install_starship() {
         $SUDO_CMD pacman -S --needed --noconfirm starship
     fi
 
+    echo -e "${C}"
+    read -p " Enter Custom Shell Prompt Name [Default: H4CK3R] ❯ " custom_name
+    custom_name=${custom_name:-H4CK3R}
+
     echo -e "${G} [*] Deploying Starship configuration...${RS}"
-    mkdir -p "$HOME/.config"
-    cat << 'EOF' > "$HOME/.config/starship.toml"
-# Custom Starship Config by H4CK3R - Matches Custom Theme Design
-format = '''
-[┌─\[](bold cyan)[󰣇 ](bold blue)$username[@](bold cyan)$hostname[\]-\[](bold cyan)$directory[\]](bold cyan)$git_branch$git_status
-$character'''
-
-[username]
-show_always = true
-style_user = "bold white"
-format = "$user"
-
-[hostname]
-ssh_only = false
-style = "bold blue"
-format = "$hostname"
-
-[directory]
-style = "bold green"
-format = "$path"
-truncation_length = 3
-truncation_symbol = "…/"
-
-[git_branch]
-symbol = " "
-style = "bold red"
-format = '-\[[git:\(](bold cyan)$symbol$branch[\)](bold cyan)\]'
-
-[git_status]
-style = "bold red"
-format = "[$all_status$ahead_behind]($style)"
-
-[character]
-success_symbol = "[└─╼ ](bold cyan)[❯❯❯](bold blue) "
-error_symbol = "[└─╼ ](bold cyan)[✗❯❯](bold red) "
-EOF
+    write_starship_config "$custom_name"
 
     echo -e "${G} [✓] Starship prompt configured!${RS}"
     
     # Auto-activate Starship in .zshrc
-    if [ -f "$HOME/.zshrc" ]; then
-        if ! grep -q "starship init zsh" "$HOME/.zshrc"; then
+    if [ -f "$TARGET_HOME/.zshrc" ]; then
+        if ! grep -q "starship init zsh" "$TARGET_HOME/.zshrc"; then
             echo -e "${G} [*] Activating Starship in your .zshrc...${RS}"
-            echo 'eval "$(starship init zsh)"' >> "$HOME/.zshrc"
+            echo 'eval "$(starship init zsh)"' >> "$TARGET_HOME/.zshrc"
         fi
     fi
 
     # Auto-activate Starship in .bashrc
-    if [ -f "$HOME/.bashrc" ]; then
-        if ! grep -q "starship init bash" "$HOME/.bashrc"; then
+    if [ -f "$TARGET_HOME/.bashrc" ]; then
+        if ! grep -q "starship init bash" "$TARGET_HOME/.bashrc"; then
             echo -e "${G} [*] Activating Starship in your .bashrc...${RS}"
-            echo 'eval "$(starship init bash)"' >> "$HOME/.bashrc"
+            echo 'eval "$(starship init bash)"' >> "$TARGET_HOME/.bashrc"
         fi
     fi
 
     # Auto-activate Starship in config.fish
-    if [ -f "$HOME/.config/fish/config.fish" ]; then
-        if ! grep -q "starship init fish" "$HOME/.config/fish/config.fish"; then
+    if [ -f "$TARGET_HOME/.config/fish/config.fish" ]; then
+        if ! grep -q "starship init fish" "$TARGET_HOME/.config/fish/config.fish"; then
             echo -e "${G} [*] Activating Starship in your config.fish...${RS}"
-            echo 'starship init fish | source' >> "$HOME/.config/fish/config.fish"
+            echo 'starship init fish | source' >> "$TARGET_HOME/.config/fish/config.fish"
         fi
     fi
+
+    adjust_ownership "$TARGET_HOME/.config/starship.toml" "$TARGET_HOME/.zshrc" "$TARGET_HOME/.bashrc" "$TARGET_HOME/.config/fish/config.fish"
 
     echo -e "${G} [✓] Starship successfully enabled and configured! Reload your shell (e.g. run 'zsh') to see it.${RS}"
     sleep 4
@@ -1070,16 +1199,17 @@ reset_config() {
     read -p " Proceed? [y/N]: " confirm_reset
     if [[ "$confirm_reset" =~ ^[Yy]$ ]]; then
         echo -e "${G} [*] Backing up and resetting .zshrc, .bashrc, and config.fish...${RS}"
-        [ -f "$HOME/.zshrc" ] && cp "$HOME/.zshrc" "$HOME/.zshrc.bak" && rm "$HOME/.zshrc"
-        [ -f "$HOME/.bashrc" ] && cp "$HOME/.bashrc" "$HOME/.bashrc.bak" && rm "$HOME/.bashrc"
-        [ -f "$HOME/.config/fish/config.fish" ] && cp "$HOME/.config/fish/config.fish" "$HOME/.config/fish/config.fish.bak" && rm "$HOME/.config/fish/config.fish"
+        [ -f "$TARGET_HOME/.zshrc" ] && cp "$TARGET_HOME/.zshrc" "$TARGET_HOME/.zshrc.bak" && rm "$TARGET_HOME/.zshrc"
+        [ -f "$TARGET_HOME/.bashrc" ] && cp "$TARGET_HOME/.bashrc" "$TARGET_HOME/.bashrc.bak" && rm "$TARGET_HOME/.bashrc"
+        [ -f "$TARGET_HOME/.config/fish/config.fish" ] && cp "$TARGET_HOME/.config/fish/config.fish" "$TARGET_HOME/.config/fish/config.fish.bak" && rm "$TARGET_HOME/.config/fish/config.fish"
         
         # Simple default configs
-        echo -e "PROMPT='%F{cyan}%n@%m %F{blue}%~ %F{yellow}❯ %f'" > "$HOME/.zshrc"
-        echo -e "PS1='[\u@\h \W]\$ '" > "$HOME/.bashrc"
-        mkdir -p "$HOME/.config/fish"
-        echo -e "set fish_greeting\nfunction fish_prompt\n    set_color cyan\n    printf '%s ' (prompt_pwd)\n    set_color normal\nend" > "$HOME/.config/fish/config.fish"
+        echo -e "PROMPT='%F{cyan}%n@%m %F{blue}%~ %F{yellow}❯ %f'" > "$TARGET_HOME/.zshrc"
+        echo -e "PS1='[\u@\h \W]\$ '" > "$TARGET_HOME/.bashrc"
+        mkdir -p "$TARGET_HOME/.config/fish"
+        echo -e "set fish_greeting\nfunction fish_prompt\n    set_color cyan\n    printf '%s ' (prompt_pwd)\n    set_color normal\nend" > "$TARGET_HOME/.config/fish/config.fish"
         
+        adjust_ownership "$TARGET_HOME/.zshrc" "$TARGET_HOME/.bashrc" "$TARGET_HOME/.config/fish"
         echo -e "${G} [✓] Configs reset. Backups saved as .zshrc.bak / .bashrc.bak / config.fish.bak${RS}"
     fi
     sleep 2
