@@ -1271,29 +1271,69 @@ reset_config() {
     menu
 }
 
+# Remove/Disable Starship prompt
+remove_starship() {
+    echo -e "${R}\n [*] Removing/Disabling Starship Prompt...${RS}"
+    
+    # Remove from .zshrc
+    if [ -f "$TARGET_HOME/.zshrc" ]; then
+        echo -e "${G} [*] Removing Starship from .zshrc...${RS}"
+        sed -i '/starship init/d' "$TARGET_HOME/.zshrc"
+    fi
+
+    # Remove from .bashrc
+    if [ -f "$TARGET_HOME/.bashrc" ]; then
+        echo -e "${G} [*] Removing Starship from .bashrc...${RS}"
+        sed -i '/starship init/d' "$TARGET_HOME/.bashrc"
+    fi
+
+    # Remove from config.fish
+    if [ -f "$TARGET_HOME/.config/fish/config.fish" ]; then
+        echo -e "${G} [*] Removing Starship from config.fish...${RS}"
+        if grep -q "starship" "$TARGET_HOME/.config/fish/config.fish"; then
+            sed -i '/# Starship Prompt/,/end/d' "$TARGET_HOME/.config/fish/config.fish" 2>/dev/null || true
+            sed -i '/starship/d' "$TARGET_HOME/.config/fish/config.fish"
+        fi
+    fi
+
+    # Remove starship.toml config
+    if [ -f "$TARGET_HOME/.config/starship.toml" ]; then
+        echo -e "${G} [*] Removing starship.toml configuration...${RS}"
+        rm -f "$TARGET_HOME/.config/starship.toml"
+    fi
+
+    adjust_ownership "$TARGET_HOME/.zshrc" "$TARGET_HOME/.bashrc" "$TARGET_HOME/.config/fish"
+    echo -e "${G} [✓] Starship successfully disabled! Reload your shell to return to the native design.${RS}"
+    sleep 3
+    menu
+}
+
 # Customize Welcome Banner
 customize_banner() {
-    echo -e "${C}\n [*] Custom Welcome Banner Setup${RS}"
-    echo -e " Choose banner style:"
-    echo -e "  ${B}[1]${G} Fastfetch Banner (Default)"
-    echo -e "  ${B}[2]${G} Custom Text figlet Banner"
-    echo -e "  ${B}[3]${G} Simple Arch ASCII Art"
-    echo -e "  ${B}[4]${R} Disable Welcome Banner"
-    read -p " Select option [1-4]: " banner_opt
+    banner
+    echo -e "\n ${C}─── Custom Welcome Banner Setup ───${RS}"
+    printf "  ${DG}[${C}01${DG}]${W} Fastfetch Banner (Default)\n"
+    printf "  ${DG}[${C}02${DG}]${W} Custom Text Figlet Banner\n"
+    printf "  ${DG}[${C}03${DG}]${W} Simple Arch ASCII Art\n"
+    printf "  ${DG}[${C}04${DG}]${W} Disable Welcome Banner\n"
+    printf "  ${DG}[${C}00${DG}]${R} Back to Main Menu\n"
+    echo -e " ${DG}──────────────────────────────────────────────────${RS}"
+    echo -ne "${B} arch-th${W}@${R}root${W}:${C}~${RS}# "
+    read banner_opt
     
-    local banner_script="$HOME/.archify-banner.sh"
+    local banner_script="$TARGET_HOME/.archify-banner.sh"
     
     case $banner_opt in
-        1)
+        1|01)
             echo -e "${G} [*] Setting up Fastfetch Welcome Banner...${RS}"
             if ! command -v fastfetch &>/dev/null; then
                 echo -e "${Y} [!] Fastfetch is not installed. Installing...${RS}"
                 $SUDO_CMD pacman -S --needed --noconfirm fastfetch
             fi
             
-            mkdir -p "$HOME/.config/fastfetch"
-            if [ ! -f "$HOME/.config/fastfetch/config.jsonc" ]; then
-                cp "$SCRIPT_DIR/.object/fastfetch_config.jsonc" "$HOME/.config/fastfetch/config.jsonc" 2>/dev/null || true
+            mkdir -p "$TARGET_HOME/.config/fastfetch"
+            if [ ! -f "$TARGET_HOME/.config/fastfetch/config.jsonc" ]; then
+                cp "$SCRIPT_DIR/.object/fastfetch_config.jsonc" "$TARGET_HOME/.config/fastfetch/config.jsonc" 2>/dev/null || true
             fi
             
             cat << 'EOF' > "$banner_script"
@@ -1312,20 +1352,24 @@ else
 fi
 EOF
             chmod +x "$banner_script"
+            adjust_ownership "$banner_script" "$TARGET_HOME/.config/fastfetch"
             echo -e "${G} [✓] Fastfetch Welcome Banner configured!${RS}"
             ;;
-        2)
+        2|02)
             echo -ne "${C} Enter Custom Banner Text [Default: Archify] ❯ ${RS}"
             read banner_text
             banner_text=${banner_text:-Archify}
             
-            echo -e "\n Choose Figlet Font:"
-            echo -e "  ${B}[1]${G} Standard"
-            echo -e "  ${B}[2]${G} Slant"
-            echo -e "  ${B}[3]${G} Shadow"
-            echo -e "  ${B}[4]${G} Doom"
-            echo -e "  ${B}[5]${G} Block"
-            read -p " Select option [1-5]: " font_choice
+            echo -e "\n ${C}─── Choose Figlet Font ───${RS}"
+            printf "  ${DG}[${C}1${DG}]${W} Standard\n"
+            printf "  ${DG}[${C}2${DG}]${W} Slant\n"
+            printf "  ${DG}[${C}3${DG}]${W} Shadow\n"
+            printf "  ${DG}[${C}4${DG}]${W} Doom\n"
+            printf "  ${DG}[${C}5${DG}]${W} Block\n"
+            printf "  ${DG}[${C}6${DG}]${W} ANSI Shadow\n"
+            echo -e " ${DG}──────────────────────────${RS}"
+            echo -ne "${B} arch-th${W}@${R}root${W}:${C}~${RS}# "
+            read font_choice
             
             local font_name="standard"
             case $font_choice in
@@ -1333,15 +1377,18 @@ EOF
                 3) font_name="shadow" ;;
                 4) font_name="doom" ;;
                 5) font_name="block" ;;
+                6) font_name="ansi_shadow" ;;
                 *) font_name="standard" ;;
             esac
             
-            echo -e "\n Choose Color Style:"
-            echo -e "  ${B}[1]${G} Rainbow (lolcat)"
-            echo -e "  ${B}[2]${G} Cyberpunk (Cyan)"
-            echo -e "  ${B}[3]${G} Matrix (Green)"
-            echo -e "  ${B}[4]${G} Plain (White)"
-            read -p " Select option [1-4]: " color_choice
+            echo -e "\n ${C}─── Choose Color Style ───${RS}"
+            printf "  ${DG}[${C}1${DG}]${W} Rainbow (lolcat)\n"
+            printf "  ${DG}[${C}2${DG}]${W} Cyberpunk (Cyan)\n"
+            printf "  ${DG}[${C}3${DG}]${W} Matrix (Green)\n"
+            printf "  ${DG}[${C}4${DG}]${W} Plain (White)\n"
+            echo -e " ${DG}──────────────────────────${RS}"
+            echo -ne "${B} arch-th${W}@${R}root${W}:${C}~${RS}# "
+            read color_choice
             
             local color_code=""
             if [ "$color_choice" = "2" ]; then
@@ -1354,7 +1401,7 @@ EOF
             
             read -p " Include System Info Box? [y/N]: " include_info
             
-            local figlet_dir="$HOME/.local/share/figlet"
+            local figlet_dir="$TARGET_HOME/.local/share/figlet"
             mkdir -p "$figlet_dir"
             
             if ! command -v figlet &>/dev/null; then
@@ -1434,9 +1481,10 @@ EOF
             fi
             
             chmod +x "$banner_script"
+            adjust_ownership "$banner_script" "$figlet_dir"
             echo -e "${G} [✓] Custom Text figlet Banner configured!${RS}"
             ;;
-        3)
+        3|03)
             echo -e "${G} [*] Setting up Simple Arch ASCII Art...${RS}"
             cat << 'EOF' > "$banner_script"
 #!/usr/bin/env bash
@@ -1455,13 +1503,19 @@ echo -e "${C}/_/    \\_\\ ${RS}"
 echo ""
 EOF
             chmod +x "$banner_script"
+            adjust_ownership "$banner_script"
             echo -e "${G} [✓] Simple Arch ASCII Art configured!${RS}"
             ;;
-        4)
+        4|04)
             echo -e "${Y} [*] Disabling Welcome Banner...${RS}"
             echo -e "#!/usr/bin/env bash\n# Welcome Banner Disabled" > "$banner_script"
             chmod +x "$banner_script"
+            adjust_ownership "$banner_script"
             echo -e "${G} [✓] Welcome Banner disabled!${RS}"
+            ;;
+        0|00)
+            menu
+            return
             ;;
         *)
             echo -e "${R} [!] Invalid Option Selected!${RS}"
@@ -1472,16 +1526,17 @@ EOF
     esac
     
     # Ensure all configurations source/run the banner
-    if [ -f "$HOME/.bashrc" ] && ! grep -q ".archify-banner.sh" "$HOME/.bashrc"; then
-        echo -e "\n# Archify Welcome Banner\nif [ -f \"\$HOME/.archify-banner.sh\" ]; then\n    bash \"\$HOME/.archify-banner.sh\"\nfi" >> "$HOME/.bashrc"
+    if [ -f "$TARGET_HOME/.bashrc" ] && ! grep -q ".archify-banner.sh" "$TARGET_HOME/.bashrc"; then
+        echo -e "\n# Archify Welcome Banner\nif [ -f \"\$HOME/.archify-banner.sh\" ]; then\n    bash \"\$HOME/.archify-banner.sh\"\nfi" >> "$TARGET_HOME/.bashrc"
     fi
-    if [ -f "$HOME/.zshrc" ] && ! grep -q ".archify-banner.sh" "$HOME/.zshrc"; then
-        echo -e "\n# Archify Welcome Banner\nif [ -f \"\$HOME/.archify-banner.sh\" ]; then\n    bash \"\$HOME/.archify-banner.sh\"\nfi" >> "$HOME/.zshrc"
+    if [ -f "$TARGET_HOME/.zshrc" ] && ! grep -q ".archify-banner.sh" "$TARGET_HOME/.zshrc"; then
+        echo -e "\n# Archify Welcome Banner\nif [ -f \"\$HOME/.archify-banner.sh\" ]; then\n    bash \"\$HOME/.archify-banner.sh\"\nfi" >> "$TARGET_HOME/.zshrc"
     fi
-    if [ -f "$HOME/.config/fish/config.fish" ] && ! grep -q ".archify-banner.sh" "$HOME/.config/fish/config.fish"; then
-        echo -e "\n# Archify Welcome Banner\nif test -f \"\$HOME/.archify-banner.sh\"\n    bash \"\$HOME/.archify-banner.sh\"\nend" >> "$HOME/.config/fish/config.fish"
+    if [ -f "$TARGET_HOME/.config/fish/config.fish" ] && ! grep -q ".archify-banner.sh" "$TARGET_HOME/.config/fish/config.fish"; then
+        echo -e "\n# Archify Welcome Banner\nif test -f \"\$HOME/.archify-banner.sh\"\n    bash \"\$HOME/.archify-banner.sh\"\nend" >> "$TARGET_HOME/.config/fish/config.fish"
     fi
     
+    adjust_ownership "$TARGET_HOME/.bashrc" "$TARGET_HOME/.zshrc" "$TARGET_HOME/.config/fish/config.fish"
     sleep 2
     menu
 }
