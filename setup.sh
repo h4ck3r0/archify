@@ -657,6 +657,61 @@ set -g pane-active-border-style fg=$primary
 EOF
 }
 
+# Helper to write starship.toml based on active color configurations
+write_starship_config() {
+    local custom_name="$1"
+    
+    # Read active colors
+    local primary="cyan"
+    local secondary="blue"
+    local success="green"
+    
+    if [ -f "$TARGET_HOME/.config/archify/colors.sh" ]; then
+        source "$TARGET_HOME/.config/archify/colors.sh"
+        primary="${ARCHIFY_PRIMARY_NAME:-cyan}"
+        secondary="${ARCHIFY_SECONDARY_NAME:-blue}"
+        success="${ARCHIFY_SUCCESS_NAME:-green}"
+    fi
+    
+    mkdir -p "$TARGET_HOME/.config"
+    cat << EOF > "$TARGET_HOME/.config/starship.toml"
+# Custom Starship Config by H4CK3R - Matches Custom Theme Design
+format = '''
+[┌─\\[]($primary)[󰣇 ]($secondary)\$username[@]($primary)\$hostname[\\]-\\[]($primary)\$directory[\\]]($primary)\$git_branch\$git_status
+\$character'''
+
+[username]
+show_always = true
+style_user = "$success"
+style_root = "$success"
+format = "[$custom_name](\$style)"
+
+[hostname]
+ssh_only = false
+style = "$secondary"
+format = "[ARCH](\$style)"
+
+[directory]
+style = "$success"
+format = "[\$path](\$style)"
+truncation_length = 3
+truncation_symbol = "…/"
+
+[git_branch]
+symbol = " "
+style = "$secondary"
+format = '-\\[[git:\\(]($primary)\$symbol\$branch[\\)]($primary)\\]'
+
+[git_status]
+style = "$secondary"
+format = "[\$all_status\$ahead_behind](\$style)"
+
+[character]
+success_symbol = "[└─╼ ]($primary)[>]($primary)[>]($secondary)[>]($success) "
+error_symbol = "[└─╼ ]($primary)[✗](red)[>]($secondary)[>]($success) "
+EOF
+}
+
 # Setup Custom Tmux configuration
 setup_tmux() {
     echo -e "${G}\n [*] Installing tmux...${RS}"
