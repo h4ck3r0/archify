@@ -141,44 +141,50 @@ apply_zsh_theme() {
     custom_name=${custom_name:-H4CK3R}
 
     # Oh-My-Zsh Installation Check
-    if [ ! -d "$HOME/.oh-my-zsh" ]; then
+    if [ ! -d "$TARGET_HOME/.oh-my-zsh" ]; then
         read -p " Oh My Zsh is not installed. Install it now? [y/N]: " inst_omz
         if [[ "$inst_omz" =~ ^[Yy]$ ]]; then
             echo -e "${G} [*] Downloading & installing Oh My Zsh (unattended)...${RS}"
-            sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+            if [ "$TARGET_USER" != "$(whoami)" ]; then
+                sudo -u "$TARGET_USER" env CHSH=no RUNZSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+            else
+                env CHSH=no RUNZSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+            fi
         fi
     fi
 
     # Deploy Theme File
     echo -e "${G} [*] Copying theme file to Zsh directory...${RS}"
-    OMZ_THEMES="$HOME/.oh-my-zsh/themes"
-    STANDALONE_THEMES="$HOME/.zsh/themes"
+    OMZ_THEMES="$TARGET_HOME/.oh-my-zsh/themes"
+    STANDALONE_THEMES="$TARGET_HOME/.zsh/themes"
     
-    if [ -d "$HOME/.oh-my-zsh" ]; then
+    if [ -d "$TARGET_HOME/.oh-my-zsh" ]; then
         mkdir -p "$OMZ_THEMES"
-        cp "$SCRIPT_DIR/.object/.h4Ck3r_arch.zsh-theme" "$OMZ_THEMES/h4Ck3r_arch.zsh-theme"
+        sed -e "s/H4CK3R/$custom_name/g" "$SCRIPT_DIR/.object/.h4Ck3r_arch.zsh-theme" > "$OMZ_THEMES/h4Ck3r_arch.zsh-theme"
     fi
     mkdir -p "$STANDALONE_THEMES"
-    cp "$SCRIPT_DIR/.object/.h4Ck3r_arch.zsh-theme" "$STANDALONE_THEMES/h4Ck3r_arch.zsh-theme"
+    sed -e "s/H4CK3R/$custom_name/g" "$SCRIPT_DIR/.object/.h4Ck3r_arch.zsh-theme" > "$STANDALONE_THEMES/h4Ck3r_arch.zsh-theme"
 
     # Set up Config
     echo -e "${G} [*] Deploying custom .zshrc...${RS}"
-    [ -f "$HOME/.zshrc" ] && cp "$HOME/.zshrc" "$HOME/.zshrc.bak"
-    sed -e "s/PROC/$custom_name/g" "$SCRIPT_DIR/.object/.zshrc_template" > "$HOME/.zshrc"
+    [ -f "$TARGET_HOME/.zshrc" ] && cp "$TARGET_HOME/.zshrc" "$TARGET_HOME/.zshrc.bak"
+    sed -e "s/PROC/$custom_name/g" "$SCRIPT_DIR/.object/.zshrc_template" > "$TARGET_HOME/.zshrc"
 
     # Deploy Fastfetch Config
     echo -e "${G} [*] Copying Fastfetch configuration...${RS}"
-    mkdir -p "$HOME/.config/fastfetch"
-    cp "$SCRIPT_DIR/.object/fastfetch_config.jsonc" "$HOME/.config/fastfetch/config.jsonc"
+    mkdir -p "$TARGET_HOME/.config/fastfetch"
+    cp "$SCRIPT_DIR/.object/fastfetch_config.jsonc" "$TARGET_HOME/.config/fastfetch/config.jsonc"
 
     # Change Default Shell
     if [[ "$SHELL" != */zsh ]]; then
         read -p " Change default shell to Zsh? [y/N]: " change_shell
         if [[ "$change_shell" =~ ^[Yy]$ ]]; then
-            $SUDO_CMD chsh -s "$(command -v zsh)" "$USER"
+            $SUDO_CMD usermod --shell "$(command -v zsh)" "$TARGET_USER" 2>/dev/null || $SUDO_CMD chsh -s "$(command -v zsh)" "$TARGET_USER"
             echo -e "${G} [✓] Shell changed to Zsh. Please log out and back in for changes to take effect.${RS}"
         fi
     fi
+
+    adjust_ownership "$TARGET_HOME/.zshrc" "$TARGET_HOME/.zshrc.bak" "$TARGET_HOME/.oh-my-zsh" "$TARGET_HOME/.zsh" "$TARGET_HOME/.config/fastfetch"
 
     echo -e "${G} [✓] Zsh theme applied successfully!${RS}"
     sleep 2
@@ -192,13 +198,24 @@ apply_bash_theme() {
     custom_name=${custom_name:-H4CK3R}
 
     echo -e "${G} [*] Deploying custom .bashrc...${RS}"
-    [ -f "$HOME/.bashrc" ] && cp "$HOME/.bashrc" "$HOME/.bashrc.bak"
-    sed -e "s/PROC/$custom_name/g" "$SCRIPT_DIR/.object/.bashrc_template" > "$HOME/.bashrc"
+    [ -f "$TARGET_HOME/.bashrc" ] && cp "$TARGET_HOME/.bashrc" "$TARGET_HOME/.bashrc.bak"
+    sed -e "s/PROC/$custom_name/g" "$SCRIPT_DIR/.object/.bashrc_template" > "$TARGET_HOME/.bashrc"
 
     # Deploy Fastfetch Config
     echo -e "${G} [*] Copying Fastfetch configuration...${RS}"
-    mkdir -p "$HOME/.config/fastfetch"
-    cp "$SCRIPT_DIR/.object/fastfetch_config.jsonc" "$HOME/.config/fastfetch/config.jsonc"
+    mkdir -p "$TARGET_HOME/.config/fastfetch"
+    cp "$SCRIPT_DIR/.object/fastfetch_config.jsonc" "$TARGET_HOME/.config/fastfetch/config.jsonc"
+
+    # Change Default Shell
+    if [[ "$SHELL" != */bash ]]; then
+        read -p " Change default shell to Bash? [y/N]: " change_shell
+        if [[ "$change_shell" =~ ^[Yy]$ ]]; then
+            $SUDO_CMD usermod --shell "$(command -v bash)" "$TARGET_USER" 2>/dev/null || $SUDO_CMD chsh -s "$(command -v bash)" "$TARGET_USER"
+            echo -e "${G} [✓] Shell changed to Bash. Please log out and back in for changes to take effect.${RS}"
+        fi
+    fi
+
+    adjust_ownership "$TARGET_HOME/.bashrc" "$TARGET_HOME/.bashrc.bak" "$TARGET_HOME/.config/fastfetch"
 
     echo -e "${G} [✓] Bash theme applied successfully! Run 'source ~/.bashrc' to apply.${RS}"
     sleep 2
@@ -218,23 +235,25 @@ apply_fish_theme() {
     custom_name=${custom_name:-H4CK3R}
 
     echo -e "${G} [*] Deploying custom config.fish...${RS}"
-    mkdir -p "$HOME/.config/fish"
-    [ -f "$HOME/.config/fish/config.fish" ] && cp "$HOME/.config/fish/config.fish" "$HOME/.config/fish/config.fish.bak"
-    sed -e "s/PROC/$custom_name/g" "$SCRIPT_DIR/.object/config.fish_template" > "$HOME/.config/fish/config.fish"
+    mkdir -p "$TARGET_HOME/.config/fish"
+    [ -f "$TARGET_HOME/.config/fish/config.fish" ] && cp "$TARGET_HOME/.config/fish/config.fish" "$TARGET_HOME/.config/fish/config.fish.bak"
+    sed -e "s/PROC/$custom_name/g" "$SCRIPT_DIR/.object/config.fish_template" > "$TARGET_HOME/.config/fish/config.fish"
 
     # Deploy Fastfetch Config
     echo -e "${G} [*] Copying Fastfetch configuration...${RS}"
-    mkdir -p "$HOME/.config/fastfetch"
-    cp "$SCRIPT_DIR/.object/fastfetch_config.jsonc" "$HOME/.config/fastfetch/config.jsonc"
+    mkdir -p "$TARGET_HOME/.config/fastfetch"
+    cp "$SCRIPT_DIR/.object/fastfetch_config.jsonc" "$TARGET_HOME/.config/fastfetch/config.jsonc"
 
     # Change Default Shell
     if [[ "$SHELL" != */fish ]]; then
         read -p " Change default shell to Fish? [y/N]: " change_shell
         if [[ "$change_shell" =~ ^[Yy]$ ]]; then
-            $SUDO_CMD chsh -s "$(command -v fish)" "$USER"
+            $SUDO_CMD usermod --shell "$(command -v fish)" "$TARGET_USER" 2>/dev/null || $SUDO_CMD chsh -s "$(command -v fish)" "$TARGET_USER"
             echo -e "${G} [✓] Shell changed to Fish. Please log out and back in for changes to take effect.${RS}"
         fi
     fi
+
+    adjust_ownership "$TARGET_HOME/.config/fish" "$TARGET_HOME/.config/fastfetch"
 
     echo -e "${G} [✓] Fish theme applied successfully!${RS}"
     sleep 2
