@@ -1568,22 +1568,34 @@ update_tool() {
 # Interactive Menu
 menu() {
     banner
-    echo -e "\n ${B}Select an option:${RS}\n"
-    printf " ${B}[${W}01${B}]${G} Install Core Dependencies\n"
-    printf " ${B}[${W}02${B}]${G} Apply Custom Zsh Theme & Fastfetch\n"
-    printf " ${B}[${W}03${B}]${G} Apply Custom Bash Theme & Fastfetch\n"
-    printf " ${B}[${W}04${B}]${G} Apply Custom Fish Theme & Fastfetch\n"
-    printf " ${B}[${W}05${B}]${G} Enable Plugins (Zsh, Bash, Fish)\n"
-    printf " ${B}[${W}06${B}]${C} Install Custom Nerd Fonts\n"
-    printf " ${B}[${W}07${B}]${C} Install Starship Prompt Preset\n"
-    printf " ${B}[${W}08${B}]${C} Customize Welcome Banner\n"
-    printf " ${B}[${W}09${B}]${C} Install Modern CLI Utilities (eza, bat, zoxide, etc.)\n"
-    printf " ${B}[${W}10${B}]${C} Customize Tmux Multiplexer\n"
-    printf " ${B}[${W}11${B}]${C} Choose Theme Color Palette\n"
-    printf " ${B}[${W}12${B}]${C} Enable Unified Command History (Atuin)\n"
-    printf " ${B}[${W}13${B}]${C} Configure Dev Tools (Neovim & Git)\n"
-    printf " ${B}[${W}14${B}]${Y} Reset Shell Configuration\n"
-    printf " ${B}[${W}00${B}]${R} Exit Script\n"
+    echo -e "\n ${C}┌──────────────────────────────────────────────────┐"
+    echo -e " ${C}│ ${W}           MAIN MENU - ARCHIFY CUSTOMIZER        ${C}│"
+    echo -e " ${C}└──────────────────────────────────────────────────┘${RS}"
+
+    echo -e "\n ${C}─── Core Setup & Shell Themes ───${RS}"
+    printf "  ${DG}[${C}01${DG}]${W} Install Core Dependencies\n"
+    printf "  ${DG}[${C}02${DG}]${W} Apply Custom Zsh Theme & Fastfetch\n"
+    printf "  ${DG}[${C}03${DG}]${W} Apply Custom Bash Theme & Fastfetch\n"
+    printf "  ${DG}[${C}04${DG}]${W} Apply Custom Fish Theme & Fastfetch\n"
+    printf "  ${DG}[${C}05${DG}]${W} Enable Plugins (Zsh, Bash, Fish)\n"
+
+    echo -e "\n ${C}─── Shell Customization & Styling ───${RS}"
+    printf "  ${DG}[${C}06${DG}]${W} Install Custom Nerd Fonts\n"
+    printf "  ${DG}[${C}07${DG}]${W} Install Starship Prompt Preset\n"
+    printf "  ${DG}[${C}08${DG}]${W} Remove/Disable Starship Prompt\n"
+    printf "  ${DG}[${C}09${DG}]${W} Customize Welcome Banner\n"
+    printf "  ${DG}[${C}10${DG}]${W} Choose Theme Color Palette\n"
+
+    echo -e "\n ${C}─── CLI Utilities & Dev Tools ───${RS}"
+    printf "  ${DG}[${C}11${DG}]${W} Install Modern CLI Utilities (eza, bat, zoxide, etc.)\n"
+    printf "  ${DG}[${C}12${DG}]${W} Customize Tmux Multiplexer\n"
+    printf "  ${DG}[${C}13${DG}]${W} Enable Unified Command History (Atuin)\n"
+    printf "  ${DG}[${C}14${DG}]${W} Configure Dev Tools (Neovim & Git)\n"
+
+    echo -e "\n ${C}─── System Maintenance ───${RS}"
+    printf "  ${DG}[${C}15${DG}]${Y} Reset Shell Configuration\n"
+    printf "  ${DG}[${C}00${DG}]${R} Exit Script\n"
+
     echo -e ""
     echo -ne "${B} arch-th${W}@${R}root${W}:${C}~${RS}# "
     read opt
@@ -1595,13 +1607,14 @@ menu() {
         5|05) apply_plugins ;;
         6|06) install_nerd_fonts ;;
         7|07) install_starship ;;
-        8|08) customize_banner ;;
-        9|09) install_modern_cli ;;
-        10) setup_tmux ;;
-        11) choose_color_theme ;;
-        12) setup_atuin ;;
-        13) setup_dev_tools ;;
-        14|14) reset_config ;;
+        8|08) remove_starship ;;
+        9|09) customize_banner ;;
+        10) choose_color_theme ;;
+        11) install_modern_cli ;;
+        12) setup_tmux ;;
+        13) setup_atuin ;;
+        14) setup_dev_tools ;;
+        15) reset_config ;;
         0|00) exit ;;
         *) wr ;;
     esac
