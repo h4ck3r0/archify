@@ -68,8 +68,8 @@ banner() {
         echo -e "${C}             Arch Linux Customizer         ${RS}"
     fi
     echo -e "${B} ┌──────────────────────────────────────────────────┐"
-    echo -e "${B} │ ${W}Coder  : ${C}Raj Aryan ${B}│ ${W}YouTube : ${G}H4Ck3R ${B}        │"
-    echo -e "${B} │ ${W}Version: ${Y}2.0       ${B}│ ${W}Target  : ${R}Arch Linux ${B}    │"
+    echo -e "${B} │ ${W}Coder  : ${C}Raj Aryan ${B}│ ${W}YouTube : ${G}H4Ck3R ${B}           │"
+    echo -e "${B} │ ${W}Version: ${Y}2.0       ${B}│ ${W}Target  : ${R}Arch Linux ${B}       │"
     echo -e "${B} └──────────────────────────────────────────────────┘${RS}"
 }
 
