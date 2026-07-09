@@ -1257,6 +1257,7 @@ reset_config() {
         [ -f "$TARGET_HOME/.zshrc" ] && cp "$TARGET_HOME/.zshrc" "$TARGET_HOME/.zshrc.bak" && rm "$TARGET_HOME/.zshrc"
         [ -f "$TARGET_HOME/.bashrc" ] && cp "$TARGET_HOME/.bashrc" "$TARGET_HOME/.bashrc.bak" && rm "$TARGET_HOME/.bashrc"
         [ -f "$TARGET_HOME/.config/fish/config.fish" ] && cp "$TARGET_HOME/.config/fish/config.fish" "$TARGET_HOME/.config/fish/config.fish.bak" && rm "$TARGET_HOME/.config/fish/config.fish"
+        [ -f "$TARGET_HOME/.config/fish/functions/fish_greeting.fish.bak" ] && mv "$TARGET_HOME/.config/fish/functions/fish_greeting.fish.bak" "$TARGET_HOME/.config/fish/functions/fish_greeting.fish"
         
         # Simple default configs
         echo -e "PROMPT='%F{cyan}%n@%m %F{blue}%~ %F{yellow}❯ %f'" > "$TARGET_HOME/.zshrc"
@@ -1381,6 +1382,16 @@ EOF
                 *) font_name="standard" ;;
             esac
             
+            local download_name="Standard"
+            case $font_name in
+                "slant") download_name="Slant" ;;
+                "shadow") download_name="Shadow" ;;
+                "doom") download_name="Doom" ;;
+                "block") download_name="Block" ;;
+                "ansi_shadow") download_name="ANSI%20Shadow" ;;
+                *) download_name="Standard" ;;
+            esac
+            
             echo -e "\n ${C}─── Choose Color Style ───${RS}"
             printf "  ${DG}[${C}1${DG}]${W} Rainbow (lolcat)\n"
             printf "  ${DG}[${C}2${DG}]${W} Cyberpunk (Cyan)\n"
@@ -1417,7 +1428,7 @@ EOF
             local font_file="$figlet_dir/$font_name.flf"
             if [ ! -f "$font_file" ]; then
                 echo -e "${Y} [*] Downloading $font_name font...${RS}"
-                curl -s -L "https://raw.githubusercontent.com/patorjk/figlet.js/master/fonts/$font_name.flf" -o "$font_file"
+                curl -s -f -L "https://raw.githubusercontent.com/patorjk/figlet.js/master/fonts/$download_name.flf" -o "$font_file"
                 if [ ! -f "$font_file" ] || [ ! -s "$font_file" ]; then
                     echo -e "${R} [!] Failed to download $font_name font. Using default standard font.${RS}"
                     font_file=""
@@ -1534,6 +1545,12 @@ EOF
     fi
     if [ -f "$TARGET_HOME/.config/fish/config.fish" ] && ! grep -q ".archify-banner.sh" "$TARGET_HOME/.config/fish/config.fish"; then
         echo -e "\n# Archify Welcome Banner\nif test -f \"\$HOME/.archify-banner.sh\"\n    bash \"\$HOME/.archify-banner.sh\"\nend" >> "$TARGET_HOME/.config/fish/config.fish"
+    fi
+    
+    # Disable conflicting fish greeting function (e.g. Caelestia banner)
+    if [ -f "$TARGET_HOME/.config/fish/functions/fish_greeting.fish" ]; then
+        echo -e "${Y} [*] Disabling conflicting fish_greeting function...${RS}"
+        mv "$TARGET_HOME/.config/fish/functions/fish_greeting.fish" "$TARGET_HOME/.config/fish/functions/fish_greeting.fish.bak" 2>/dev/null || true
     fi
     
     adjust_ownership "$TARGET_HOME/.bashrc" "$TARGET_HOME/.zshrc" "$TARGET_HOME/.config/fish/config.fish"
