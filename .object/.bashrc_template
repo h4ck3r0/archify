@@ -22,8 +22,8 @@ if [ -f "$HOME/.config/archify/colors.sh" ]; then
     source "$HOME/.config/archify/colors.sh"
 fi
 
-C_PRIMARY="\[\e[1;${ARCHIFY_PRIMARY:-36}m\]"
-C_SECONDARY="\[\e[1;${ARCHIFY_SECONDARY:-34}m\]"
+C_PRIMARY="\[\e[1;${ARCHIFY_PRIMARY:-31}m\]"
+C_SECONDARY="\[\e[1;${ARCHIFY_SECONDARY:-36}m\]"
 C_SUCCESS="\[\e[1;${ARCHIFY_SUCCESS:-32}m\]"
 C_RED="\[\e[1;31m\]"
 C_YELLOW="\[\e[1;33m\]"

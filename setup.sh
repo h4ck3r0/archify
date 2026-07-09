@@ -761,7 +761,7 @@ choose_color_theme() {
     printf " ${B}[${W}02${B}]${G} Dracula (Purple & Green)\n"
     printf " ${B}[${W}03${B}]${G} Nord (Cyan & Blue)\n"
     printf " ${B}[${W}04${B}]${G} Gruvbox (Yellow & Magenta)\n"
-    printf " ${B}[${W}05${B}]${G} H4CK3R Default (Blue & Cyan)\n"
+    printf " ${B}[${W}05${B}]${G} H4CK3R Default (Red & Cyan)\n"
     printf " ${B}[${W}06${B}]${G} Stealth Matrix (Green & White)\n"
     printf " ${B}[${W}07${B}]${G} Ice Cold (Cyan & White)\n"
     printf " ${B}[${W}00${B}]${R} Back to Main Menu\n"
@@ -863,10 +863,10 @@ set -gx ARCHIFY_WARN yellow
 EOF
             ;;
         5|05)
-            # H4CK3R Default (Blue & Cyan)
+            # H4CK3R Default (Red & Cyan)
             cat << 'EOF' > "$c_sh"
-export ARCHIFY_PRIMARY='34'
-export ARCHIFY_PRIMARY_NAME='blue'
+export ARCHIFY_PRIMARY='31'
+export ARCHIFY_PRIMARY_NAME='red'
 export ARCHIFY_SECONDARY='36'
 export ARCHIFY_SECONDARY_NAME='cyan'
 export ARCHIFY_SUCCESS='32'
@@ -877,7 +877,7 @@ export ARCHIFY_WARN='33'
 export ARCHIFY_WARN_NAME='yellow'
 EOF
             cat << 'EOF' > "$c_fish"
-set -gx ARCHIFY_PRIMARY blue
+set -gx ARCHIFY_PRIMARY red
 set -gx ARCHIFY_SECONDARY cyan
 set -gx ARCHIFY_SUCCESS green
 set -gx ARCHIFY_ALERT red

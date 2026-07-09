@@ -13,8 +13,8 @@ if test -f "$HOME/.config/archify/colors.fish"
     source "$HOME/.config/archify/colors.fish"
 end
 
-set -q ARCHIFY_PRIMARY; or set ARCHIFY_PRIMARY cyan
-set -q ARCHIFY_SECONDARY; or set ARCHIFY_SECONDARY blue
+set -q ARCHIFY_PRIMARY; or set ARCHIFY_PRIMARY red
+set -q ARCHIFY_SECONDARY; or set ARCHIFY_SECONDARY cyan
 set -q ARCHIFY_SUCCESS; or set ARCHIFY_SUCCESS green
 set -q ARCHIFY_ALERT; or set ARCHIFY_ALERT red
 set -q ARCHIFY_WARN; or set ARCHIFY_WARN yellow

@@ -7,8 +7,8 @@ if [ -f "$HOME/.config/archify/colors.sh" ]; then
 fi
 
 # Set fallbacks if not defined
-ARCHIFY_PRIMARY="${ARCHIFY_PRIMARY:-cyan}"
-ARCHIFY_SECONDARY="${ARCHIFY_SECONDARY:-blue}"
+ARCHIFY_PRIMARY="${ARCHIFY_PRIMARY:-red}"
+ARCHIFY_SECONDARY="${ARCHIFY_SECONDARY:-cyan}"
 ARCHIFY_SUCCESS="${ARCHIFY_SUCCESS:-green}"
 ARCHIFY_ALERT="${ARCHIFY_ALERT:-red}"
 ARCHIFY_WARN="${ARCHIFY_WARN:-yellow}"
