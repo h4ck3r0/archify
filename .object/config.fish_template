@@ -48,21 +48,21 @@ end
 function fish_prompt
     set -l last_status $status
     echo
-    set_color red
+    set_color $ARCHIFY_PRIMARY
     printf "┌─["
     set_color $ARCHIFY_SECONDARY
     printf "󰣇 "
-    set_color $ARCHIFY_PRIMARY
+    set_color $ARCHIFY_SUCCESS
     printf "PROC"
-    set_color yellow
+    set_color $ARCHIFY_WARN
     printf "@"
     set_color $ARCHIFY_SECONDARY
     printf "ARCH"
-    set_color red
+    set_color $ARCHIFY_PRIMARY
     printf "]-["
     set_color $ARCHIFY_SUCCESS
     printf "%s" (prompt_pwd)
-    set_color red
+    set_color $ARCHIFY_PRIMARY
     printf "]"
     
     # Git integration
@@ -81,7 +81,7 @@ function fish_prompt
     end
     
     echo
-    set_color red
+    set_color $ARCHIFY_PRIMARY
     printf "└─╼ "
     if test $last_status -eq 0
         set_color $ARCHIFY_PRIMARY

@@ -665,25 +665,27 @@ write_starship_config() {
     local primary="cyan"
     local secondary="blue"
     local success="green"
+    local warn="yellow"
     
     if [ -f "$TARGET_HOME/.config/archify/colors.sh" ]; then
         source "$TARGET_HOME/.config/archify/colors.sh"
         primary="${ARCHIFY_PRIMARY_NAME:-cyan}"
         secondary="${ARCHIFY_SECONDARY_NAME:-blue}"
         success="${ARCHIFY_SUCCESS_NAME:-green}"
+        warn="${ARCHIFY_WARN_NAME:-yellow}"
     fi
     
     mkdir -p "$TARGET_HOME/.config"
     cat << EOF > "$TARGET_HOME/.config/starship.toml"
 # Custom Starship Config by H4CK3R - Matches Custom Theme Design
 format = '''
-[┌─\\[](red)[󰣇 ]($secondary)\$username[@](yellow)\$hostname[\\]-\\[](red)\$directory[\\]](red)\$git_branch\$git_status
+[┌─\\[]($primary)[󰣇 ]($secondary)\$username[@]($warn)\$hostname[\\]-\\[]($primary)\$directory[\\]]($primary)\$git_branch\$git_status
 \$character'''
 
 [username]
 show_always = true
-style_user = "$primary"
-style_root = "$primary"
+style_user = "$success"
+style_root = "$success"
 format = "[$custom_name](\$style)"
 
 [hostname]
@@ -700,15 +702,15 @@ truncation_symbol = "…/"
 [git_branch]
 symbol = " "
 style = "$secondary"
-format = '-\\[[git:\\(](red)\$symbol\$branch[\\)](red)\\]'
+format = '-\\[[git:\\(]($primary)\$symbol\$branch[\\)]($primary)\\]'
 
 [git_status]
 style = "$secondary"
 format = "[\$all_status\$ahead_behind](\$style)"
 
 [character]
-success_symbol = "[└─╼ ]($primary)[>]($primary)[>]($secondary)[>]($success) "
-error_symbol = "[└─╼ ]($primary)[✗](red)[>]($secondary)[>]($success) "
+success_symbol = "[└─╼ ]($primary)[❯]($primary)[❯]($secondary)[❯]($success) "
+error_symbol = "[└─╼ ]($primary)[✗](red)[❯]($secondary)[❯]($success) "
 EOF
 }
 
@@ -851,15 +853,15 @@ export ARCHIFY_SUCCESS='32'
 export ARCHIFY_SUCCESS_NAME='green'
 export ARCHIFY_ALERT='31'
 export ARCHIFY_ALERT_NAME='red'
-export ARCHIFY_WARN='33'
-export ARCHIFY_WARN_NAME='yellow'
+export ARCHIFY_WARN='36'
+export ARCHIFY_WARN_NAME='cyan'
 EOF
             cat << 'EOF' > "$c_fish"
 set -gx ARCHIFY_PRIMARY yellow
 set -gx ARCHIFY_SECONDARY magenta
 set -gx ARCHIFY_SUCCESS green
 set -gx ARCHIFY_ALERT red
-set -gx ARCHIFY_WARN yellow
+set -gx ARCHIFY_WARN cyan
 EOF
             ;;
         5|05)
@@ -895,15 +897,15 @@ export ARCHIFY_SUCCESS='33'
 export ARCHIFY_SUCCESS_NAME='yellow'
 export ARCHIFY_ALERT='31'
 export ARCHIFY_ALERT_NAME='red'
-export ARCHIFY_WARN='33'
-export ARCHIFY_WARN_NAME='yellow'
+export ARCHIFY_WARN='34'
+export ARCHIFY_WARN_NAME='blue'
 EOF
             cat << 'EOF' > "$c_fish"
 set -gx ARCHIFY_PRIMARY green
 set -gx ARCHIFY_SECONDARY white
 set -gx ARCHIFY_SUCCESS yellow
 set -gx ARCHIFY_ALERT red
-set -gx ARCHIFY_WARN yellow
+set -gx ARCHIFY_WARN blue
 EOF
             ;;
         7|07)
