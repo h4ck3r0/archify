@@ -677,13 +677,13 @@ write_starship_config() {
     cat << EOF > "$TARGET_HOME/.config/starship.toml"
 # Custom Starship Config by H4CK3R - Matches Custom Theme Design
 format = '''
-[┌─\\[]($primary)[󰣇 ]($secondary)\$username[@]($primary)\$hostname[\\]-\\[]($primary)\$directory[\\]]($primary)\$git_branch\$git_status
+[┌─\\[](red)[󰣇 ]($secondary)\$username[@](yellow)\$hostname[\\]-\\[](red)\$directory[\\]](red)\$git_branch\$git_status
 \$character'''
 
 [username]
 show_always = true
-style_user = "$success"
-style_root = "$success"
+style_user = "$primary"
+style_root = "$primary"
 format = "[$custom_name](\$style)"
 
 [hostname]
@@ -700,7 +700,7 @@ truncation_symbol = "…/"
 [git_branch]
 symbol = " "
 style = "$secondary"
-format = '-\\[[git:\\(]($primary)\$symbol\$branch[\\)]($primary)\\]'
+format = '-\\[[git:\\(](red)\$symbol\$branch[\\)](red)\\]'
 
 [git_status]
 style = "$secondary"
@@ -760,10 +760,10 @@ choose_color_theme() {
     printf " ${B}[${W}01${B}]${G} Cyberpunk Neon (Magenta & Cyan)\n"
     printf " ${B}[${W}02${B}]${G} Dracula (Purple & Green)\n"
     printf " ${B}[${W}03${B}]${G} Nord (Cyan & Blue)\n"
-    printf " ${B}[${W}04${B}]${G} Gruvbox (Yellow & Red)\n"
+    printf " ${B}[${W}04${B}]${G} Gruvbox (Yellow & Magenta)\n"
     printf " ${B}[${W}05${B}]${G} H4CK3R Default (Blue & Cyan)\n"
-    printf " ${B}[${W}06${B}]${G} Stealth Matrix (Green & Yellow)\n"
-    printf " ${B}[${W}07${B}]${G} Ice Cold (Tech Blue & Cyan)\n"
+    printf " ${B}[${W}06${B}]${G} Stealth Matrix (Green & White)\n"
+    printf " ${B}[${W}07${B}]${G} Ice Cold (Cyan & White)\n"
     printf " ${B}[${W}00${B}]${R} Back to Main Menu\n"
     echo -e ""
     echo -ne "${B} arch-th${W}@${R}root${W}:${C}~${RS}# "
@@ -845,8 +845,8 @@ EOF
             cat << 'EOF' > "$c_sh"
 export ARCHIFY_PRIMARY='33'
 export ARCHIFY_PRIMARY_NAME='yellow'
-export ARCHIFY_SECONDARY='31'
-export ARCHIFY_SECONDARY_NAME='red'
+export ARCHIFY_SECONDARY='35'
+export ARCHIFY_SECONDARY_NAME='magenta'
 export ARCHIFY_SUCCESS='32'
 export ARCHIFY_SUCCESS_NAME='green'
 export ARCHIFY_ALERT='31'
@@ -856,7 +856,7 @@ export ARCHIFY_WARN_NAME='yellow'
 EOF
             cat << 'EOF' > "$c_fish"
 set -gx ARCHIFY_PRIMARY yellow
-set -gx ARCHIFY_SECONDARY red
+set -gx ARCHIFY_SECONDARY magenta
 set -gx ARCHIFY_SUCCESS green
 set -gx ARCHIFY_ALERT red
 set -gx ARCHIFY_WARN yellow
@@ -885,14 +885,14 @@ set -gx ARCHIFY_WARN yellow
 EOF
             ;;
         6|06)
-            # Stealth Matrix (Green & Yellow)
+            # Stealth Matrix (Green & White)
             cat << 'EOF' > "$c_sh"
 export ARCHIFY_PRIMARY='32'
 export ARCHIFY_PRIMARY_NAME='green'
-export ARCHIFY_SECONDARY='33'
-export ARCHIFY_SECONDARY_NAME='yellow'
-export ARCHIFY_SUCCESS='37'
-export ARCHIFY_SUCCESS_NAME='white'
+export ARCHIFY_SECONDARY='37'
+export ARCHIFY_SECONDARY_NAME='white'
+export ARCHIFY_SUCCESS='33'
+export ARCHIFY_SUCCESS_NAME='yellow'
 export ARCHIFY_ALERT='31'
 export ARCHIFY_ALERT_NAME='red'
 export ARCHIFY_WARN='33'
@@ -900,30 +900,30 @@ export ARCHIFY_WARN_NAME='yellow'
 EOF
             cat << 'EOF' > "$c_fish"
 set -gx ARCHIFY_PRIMARY green
-set -gx ARCHIFY_SECONDARY yellow
-set -gx ARCHIFY_SUCCESS white
+set -gx ARCHIFY_SECONDARY white
+set -gx ARCHIFY_SUCCESS yellow
 set -gx ARCHIFY_ALERT red
 set -gx ARCHIFY_WARN yellow
 EOF
             ;;
         7|07)
-            # Ice Cold (Tech Blue & Cyan)
+            # Ice Cold (Cyan & White)
             cat << 'EOF' > "$c_sh"
-export ARCHIFY_PRIMARY='34'
-export ARCHIFY_PRIMARY_NAME='blue'
-export ARCHIFY_SECONDARY='36'
-export ARCHIFY_SECONDARY_NAME='cyan'
-export ARCHIFY_SUCCESS='37'
-export ARCHIFY_SUCCESS_NAME='white'
+export ARCHIFY_PRIMARY='36'
+export ARCHIFY_PRIMARY_NAME='cyan'
+export ARCHIFY_SECONDARY='37'
+export ARCHIFY_SECONDARY_NAME='white'
+export ARCHIFY_SUCCESS='34'
+export ARCHIFY_SUCCESS_NAME='blue'
 export ARCHIFY_ALERT='31'
 export ARCHIFY_ALERT_NAME='red'
 export ARCHIFY_WARN='33'
 export ARCHIFY_WARN_NAME='yellow'
 EOF
             cat << 'EOF' > "$c_fish"
-set -gx ARCHIFY_PRIMARY blue
-set -gx ARCHIFY_SECONDARY cyan
-set -gx ARCHIFY_SUCCESS white
+set -gx ARCHIFY_PRIMARY cyan
+set -gx ARCHIFY_SECONDARY white
+set -gx ARCHIFY_SUCCESS blue
 set -gx ARCHIFY_ALERT red
 set -gx ARCHIFY_WARN yellow
 EOF
