@@ -2,6 +2,7 @@
 
 Welcome to **Archify**! This tool provides an interactive menu-driven script to customize your Arch terminal using Zsh, Bash, Fish, Fastfetch, Starship, custom Nerd Fonts, shell plugins, multiplexer styling, and modern CLI tools.
 
+[![Demo Image](https://github.com/h4ck3r0/demoo/raw/main/image.png)](YOUR_DESTINATION_LINK_HERE)
 ---
 
 ## Features
