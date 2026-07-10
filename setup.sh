@@ -17,6 +17,14 @@ clear
 SUDO_CMD=$(command -v sudo)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Validate startup files exist
+if [ ! -d "$SCRIPT_DIR/.object" ]; then
+    echo -e "\033[1;31m[!] Error: The required '.object' template directory was not found in '$SCRIPT_DIR'.\033[0m"
+    echo -e "\033[1;93mPlease clone the full repository to run this script:\033[0m"
+    echo -e "git clone https://github.com/h4ck3r0/archify.git"
+    exit 1
+fi
+
 # Determine Target User and Home Directory
 if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
     TARGET_USER="$SUDO_USER"
@@ -47,6 +55,44 @@ adjust_ownership() {
                 chown -R "$TARGET_USER:$TARGET_USER" "$file" 2>/dev/null || true
             fi
         done
+        # Also clean up top-level configuration/local/cache directories if they are owned by root
+        for dir in "$TARGET_HOME/.config" "$TARGET_HOME/.local" "$TARGET_HOME/.cache"; do
+            if [ -d "$dir" ] && [ "$(stat -c '%U' "$dir" 2>/dev/null)" = "root" ]; then
+                chown "$TARGET_USER:$TARGET_USER" "$dir" 2>/dev/null || true
+            fi
+        done
+    fi
+}
+
+# Execute command as target user
+run_as_target() {
+    if [ "$TARGET_USER" != "$(whoami)" ] && [ -n "$TARGET_USER" ]; then
+        if command -v sudo &>/dev/null; then
+            sudo -u "$TARGET_USER" "$@"
+        elif command -v runuser &>/dev/null; then
+            runuser -u "$TARGET_USER" -- "$@"
+        else
+            su "$TARGET_USER" -c "$(printf '%q ' "$@")"
+        fi
+    else
+        "$@"
+    fi
+}
+
+# Run git commands in the repository preserving original repository owner
+run_git_in_repo() {
+    local repo_owner
+    repo_owner=$(stat -c '%U' "$SCRIPT_DIR" 2>/dev/null)
+    if [ -n "$repo_owner" ] && [ "$repo_owner" != "$(whoami)" ]; then
+        if command -v sudo &>/dev/null; then
+            sudo -u "$repo_owner" git "$@"
+        elif command -v runuser &>/dev/null; then
+            runuser -u "$repo_owner" -- git "$@"
+        else
+            su "$repo_owner" -c "git $(printf '%q ' "$@")"
+        fi
+    else
+        git "$@"
     fi
 }
 
@@ -101,9 +147,35 @@ setup_aur_helper() {
             echo -e "${G} [*] Installing base-devel and git...${RS}"
             $SUDO_CMD pacman -S --needed --noconfirm git base-devel
             echo -e "${G} [*] Building yay...${RS}"
-            git clone https://aur.archlinux.org/yay-bin.git /tmp/yay-bin
-            cd /tmp/yay-bin && makepkg -si --noconfirm
+            
+            rm -rf /tmp/yay-bin
+            local build_user="$TARGET_USER"
+            [ "$build_user" = "root" ] && build_user="nobody"
+            
+            mkdir -p /tmp/yay-bin
+            chown -R "$build_user:$build_user" /tmp/yay-bin
+            
+            if [ "$build_user" != "$(whoami)" ]; then
+                if command -v sudo &>/dev/null; then
+                    sudo -u "$build_user" git clone https://aur.archlinux.org/yay-bin.git /tmp/yay-bin
+                    cd /tmp/yay-bin && sudo -u "$build_user" makepkg --noconfirm
+                elif command -v runuser &>/dev/null; then
+                    runuser -u "$build_user" -- git clone https://aur.archlinux.org/yay-bin.git /tmp/yay-bin
+                    cd /tmp/yay-bin && runuser -u "$build_user" -- makepkg --noconfirm
+                else
+                    su "$build_user" -c "git clone https://aur.archlinux.org/yay-bin.git /tmp/yay-bin"
+                    cd /tmp/yay-bin && su "$build_user" -c "makepkg --noconfirm"
+                fi
+            else
+                git clone https://aur.archlinux.org/yay-bin.git /tmp/yay-bin
+                cd /tmp/yay-bin && makepkg --noconfirm
+            fi
+            
+            echo -e "${G} [*] Installing yay package...${RS}"
+            $SUDO_CMD pacman -U --noconfirm /tmp/yay-bin/*.pkg.tar.zst
+            
             cd "$SCRIPT_DIR"
+            rm -rf /tmp/yay-bin
             echo -e "${G} [✓] yay successfully installed!${RS}"
         fi
     fi
@@ -145,11 +217,7 @@ apply_zsh_theme() {
         read -p " Oh My Zsh is not installed. Install it now? [y/N]: " inst_omz
         if [[ "$inst_omz" =~ ^[Yy]$ ]]; then
             echo -e "${G} [*] Downloading & installing Oh My Zsh (unattended)...${RS}"
-            if [ "$TARGET_USER" != "$(whoami)" ]; then
-                sudo -u "$TARGET_USER" env CHSH=no RUNZSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
-            else
-                env CHSH=no RUNZSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
-            fi
+            run_as_target env CHSH=no RUNZSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
         fi
     fi
 
@@ -270,40 +338,24 @@ apply_zsh_plugins() {
     
     # Backup setup: Clone to user directories
     ZSH_PLUGINS_DIR="$TARGET_HOME/.zsh"
-    mkdir -p "$ZSH_PLUGINS_DIR"
+    run_as_target mkdir -p "$ZSH_PLUGINS_DIR"
 
     # Syntax Highlighting
     if [ ! -d "$ZSH_PLUGINS_DIR/zsh-syntax-highlighting" ]; then
         echo -e "${G} [*] Cloning zsh-syntax-highlighting...${RS}"
-        if [ "$TARGET_USER" != "$(whoami)" ]; then
-            sudo -u "$TARGET_USER" git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$ZSH_PLUGINS_DIR/zsh-syntax-highlighting"
-        else
-            git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$ZSH_PLUGINS_DIR/zsh-syntax-highlighting"
-        fi
+        run_as_target git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$ZSH_PLUGINS_DIR/zsh-syntax-highlighting"
     else
         echo -e "${G} [*] Updating zsh-syntax-highlighting...${RS}"
-        if [ "$TARGET_USER" != "$(whoami)" ]; then
-            sudo -u "$TARGET_USER" sh -c "cd '$ZSH_PLUGINS_DIR/zsh-syntax-highlighting' && git pull"
-        else
-            cd "$ZSH_PLUGINS_DIR/zsh-syntax-highlighting" && git pull && cd "$SCRIPT_DIR"
-        fi
+        run_as_target sh -c "cd '$ZSH_PLUGINS_DIR/zsh-syntax-highlighting' && git pull"
     fi
 
     # Autosuggestions
     if [ ! -d "$ZSH_PLUGINS_DIR/zsh-autosuggestions" ]; then
         echo -e "${G} [*] Cloning zsh-autosuggestions...${RS}"
-        if [ "$TARGET_USER" != "$(whoami)" ]; then
-            sudo -u "$TARGET_USER" git clone https://github.com/zsh-users/zsh-autosuggestions "$ZSH_PLUGINS_DIR/zsh-autosuggestions"
-        else
-            git clone https://github.com/zsh-users/zsh-autosuggestions "$ZSH_PLUGINS_DIR/zsh-autosuggestions"
-        fi
+        run_as_target git clone https://github.com/zsh-users/zsh-autosuggestions "$ZSH_PLUGINS_DIR/zsh-autosuggestions"
     else
         echo -e "${G} [*] Updating zsh-autosuggestions...${RS}"
-        if [ "$TARGET_USER" != "$(whoami)" ]; then
-            sudo -u "$TARGET_USER" sh -c "cd '$ZSH_PLUGINS_DIR/zsh-autosuggestions' && git pull"
-        else
-            cd "$ZSH_PLUGINS_DIR/zsh-autosuggestions" && git pull && cd "$SCRIPT_DIR"
-        fi
+        run_as_target sh -c "cd '$ZSH_PLUGINS_DIR/zsh-autosuggestions' && git pull"
     fi
 
     adjust_ownership "$ZSH_PLUGINS_DIR"
@@ -335,18 +387,10 @@ apply_bash_plugins() {
         # Try installing via AUR helper first
         if command -v yay &> /dev/null; then
             echo -e "${G} [*] Installing blesh via yay...${RS}"
-            if [ "$TARGET_USER" != "$(whoami)" ]; then
-                sudo -u "$TARGET_USER" yay -S --needed --noconfirm blesh
-            else
-                yay -S --needed --noconfirm blesh
-            fi
+            run_as_target yay -S --needed --noconfirm blesh
         elif command -v paru &> /dev/null; then
             echo -e "${G} [*] Installing blesh via paru...${RS}"
-            if [ "$TARGET_USER" != "$(whoami)" ]; then
-                sudo -u "$TARGET_USER" paru -S --needed --noconfirm blesh
-            else
-                paru -S --needed --noconfirm blesh
-            fi
+            run_as_target paru -S --needed --noconfirm blesh
         fi
         
         # Re-check if AUR installation succeeded
@@ -359,34 +403,17 @@ apply_bash_plugins() {
         if [ "$blesh_installed" = false ]; then
             echo -e "${Y} [*] AUR helper not found or install failed. Downloading pre-built ble.sh nightly...${RS}"
             local blesh_dir="$TARGET_HOME/.local/share/blesh"
-            if [ "$TARGET_USER" != "$(whoami)" ]; then
-                sudo -u "$TARGET_USER" mkdir -p "$blesh_dir"
-            else
-                mkdir -p "$blesh_dir"
-            fi
+            run_as_target mkdir -p "$blesh_dir"
+            
             if command -v curl &>/dev/null && command -v tar &>/dev/null; then
-                if [ "$TARGET_USER" != "$(whoami)" ]; then
-                    if sudo -u "$TARGET_USER" curl -L https://github.com/akinomyoga/ble.sh/releases/download/nightly/ble-nightly.tar.xz | sudo -u "$TARGET_USER" tar xJf - -C "$blesh_dir" --strip-components=1; then
-                        blesh_installed=true
-                        blesh_path="$blesh_dir/ble.sh"
-                    fi
-                else
-                    if curl -L https://github.com/akinomyoga/ble.sh/releases/download/nightly/ble-nightly.tar.xz | tar xJf - -C "$blesh_dir" --strip-components=1; then
-                        blesh_installed=true
-                        blesh_path="$blesh_dir/ble.sh"
-                    fi
+                if run_as_target sh -c "curl -L https://github.com/akinomyoga/ble.sh/releases/download/nightly/ble-nightly.tar.xz | tar xJf - -C '$blesh_dir' --strip-components=1"; then
+                    blesh_installed=true
+                    blesh_path="$blesh_dir/ble.sh"
                 fi
             elif command -v wget &>/dev/null && command -v tar &>/dev/null; then
-                if [ "$TARGET_USER" != "$(whoami)" ]; then
-                    if sudo -u "$TARGET_USER" wget -O - https://github.com/akinomyoga/ble.sh/releases/download/nightly/ble-nightly.tar.xz | sudo -u "$TARGET_USER" tar xJf - -C "$blesh_dir" --strip-components=1; then
-                        blesh_installed=true
-                        blesh_path="$blesh_dir/ble.sh"
-                    fi
-                else
-                    if wget -O - https://github.com/akinomyoga/ble.sh/releases/download/nightly/ble-nightly.tar.xz | tar xJf - -C "$blesh_dir" --strip-components=1; then
-                        blesh_installed=true
-                        blesh_path="$blesh_dir/ble.sh"
-                    fi
+                if run_as_target sh -c "wget -O - https://github.com/akinomyoga/ble.sh/releases/download/nightly/ble-nightly.tar.xz | tar xJf - -C '$blesh_dir' --strip-components=1"; then
+                    blesh_installed=true
+                    blesh_path="$blesh_dir/ble.sh"
                 fi
             fi
         fi
@@ -409,10 +436,10 @@ apply_bash_plugins() {
             local added=false
             
             # Write out modified .bashrc line-by-line
-            while IFS= read -r line; do
+            while IFS= read -r line || [ -n "$line" ]; do
                 echo "$line" >> "$temp_rc"
                 # Locate where to insert the source command: right after the non-interactive check
-                if [[ "$line" == *"[[ $- != *i* ]]"* ]]; then
+                if [[ "$line" == *"\$-"* ]]; then
                     if [ "$added" = false ]; then
                         echo -e "\n# Enable ble.sh" >> "$temp_rc"
                         echo 'if [ -f "/usr/share/blesh/ble.sh" ]; then' >> "$temp_rc"
@@ -442,9 +469,10 @@ apply_bash_plugins() {
             # Append ble-attach at the end
             echo -e "\n# Attach ble.sh\n[[ \${BLE_VERSION-} ]] && ble-attach" >> "$temp_rc"
             
-            # Move back to ~/.bashrc
+            # Copy back safely to preserve ownership/permissions
             cp "$TARGET_HOME/.bashrc" "$TARGET_HOME/.bashrc.bak"
-            mv "$temp_rc" "$TARGET_HOME/.bashrc"
+            cat "$temp_rc" > "$TARGET_HOME/.bashrc"
+            rm -f "$temp_rc"
         fi
     else
         # No .bashrc exists, create a minimal one
@@ -485,15 +513,9 @@ apply_fish_plugins() {
     
     # Run Fisher installation via Fish shell
     echo -e "${G} [*] Installing Fisher plugin manager...${RS}"
-    if [ "$TARGET_USER" != "$(whoami)" ]; then
-        sudo -u "$TARGET_USER" fish -c 'curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source && fisher install jorgebucaran/fisher'
-        echo -e "${G} [*] Installing Fish plugins (fzf.fish, sponge, fish-colored-man)...${RS}"
-        sudo -u "$TARGET_USER" fish -c 'fisher install PatrickF1/fzf.fish meaningful-ooo/sponge decors/fish-colored-man'
-    else
-        fish -c 'curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source && fisher install jorgebucaran/fisher'
-        echo -e "${G} [*] Installing Fish plugins (fzf.fish, sponge, fish-colored-man)...${RS}"
-        fish -c 'fisher install PatrickF1/fzf.fish meaningful-ooo/sponge decors/fish-colored-man'
-    fi
+    run_as_target fish -c 'curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source && fisher install jorgebucaran/fisher'
+    echo -e "${G} [*] Installing Fish plugins (fzf.fish, sponge, fish-colored-man)...${RS}"
+    run_as_target fish -c 'fisher install PatrickF1/fzf.fish meaningful-ooo/sponge decors/fish-colored-man'
     
     adjust_ownership "$TARGET_HOME/.config/fish"
     
@@ -1073,11 +1095,7 @@ configure_nvim() {
         [ -d "$TARGET_HOME/.cache/nvim" ] && mv "$TARGET_HOME/.cache/nvim" "$TARGET_HOME/.cache/nvim.bak"
         
         echo -e "${G} [*] Cloning LazyVim starter config...${RS}"
-        if [ "$TARGET_USER" != "$(whoami)" ]; then
-            sudo -u "$TARGET_USER" git clone https://github.com/LazyVim/starter "$TARGET_HOME/.config/nvim"
-        else
-            git clone https://github.com/LazyVim/starter "$TARGET_HOME/.config/nvim"
-        fi
+        run_as_target git clone https://github.com/LazyVim/starter "$TARGET_HOME/.config/nvim"
         echo -e "${G} [✓] LazyVim config installed. Launch 'nvim' to initialize plugins.${RS}"
     fi
 }
@@ -1088,28 +1106,27 @@ configure_git() {
     $SUDO_CMD pacman -S --needed --noconfirm diff-so-fancy 2>/dev/null || yay -S --noconfirm diff-so-fancy 2>/dev/null
     
     echo -e "${G} [*] Configuring Git preferences (diff-so-fancy pager and colors)...${RS}"
-    local git_cmd="git"
-    if [ "$TARGET_USER" != "$(whoami)" ]; then
-        git_cmd="sudo -u $TARGET_USER git"
-    fi
-    $git_cmd config --global color.ui true
+    git_cmd() {
+        run_as_target git "$@"
+    }
+    git_cmd config --global color.ui true
     if command -v diff-so-fancy &> /dev/null; then
-        $git_cmd config --global core.pager "diff-so-fancy | less --tabs=4 -RFX"
-        $git_cmd config --global interactive.diffFilter "diff-so-fancy --patch"
+        git_cmd config --global core.pager "diff-so-fancy | less --tabs=4 -RFX"
+        git_cmd config --global interactive.diffFilter "diff-so-fancy --patch"
         
         # Color styling compatible with diff-so-fancy
-        $git_cmd config --global color.diff-highlight.oldNormal "red bold"
-        $git_cmd config --global color.diff-highlight.oldHighlight "red bold 52"
-        $git_cmd config --global color.diff-highlight.newNormal "green bold"
-        $git_cmd config --global color.diff-highlight.newHighlight "green bold 22"
+        git_cmd config --global color.diff-highlight.oldNormal "red bold"
+        git_cmd config --global color.diff-highlight.oldHighlight "red bold 52"
+        git_cmd config --global color.diff-highlight.newNormal "green bold"
+        git_cmd config --global color.diff-highlight.newHighlight "green bold 22"
         
-        $git_cmd config --global color.diff.meta "11"
-        $git_cmd config --global color.diff.frag "magenta bold"
-        $git_cmd config --global color.diff.func "146 bold"
-        $git_cmd config --global color.diff.old "red bold"
-        $git_cmd config --global color.diff.new "green bold"
-        $git_cmd config --global color.diff.commit "yellow bold"
-        $git_cmd config --global color.diff.whitespace "red reverse"
+        git_cmd config --global color.diff.meta "11"
+        git_cmd config --global color.diff.frag "magenta bold"
+        git_cmd config --global color.diff.func "146 bold"
+        git_cmd config --global color.diff.old "red bold"
+        git_cmd config --global color.diff.new "green bold"
+        git_cmd config --global color.diff.commit "yellow bold"
+        git_cmd config --global color.diff.whitespace "red reverse"
     fi
     [ -f "$TARGET_HOME/.gitconfig" ] && adjust_ownership "$TARGET_HOME/.gitconfig"
     echo -e "${G} [✓] Git configurations applied successfully!${RS}"
@@ -1118,6 +1135,13 @@ configure_git() {
 # Install Nerd Fonts
 install_nerd_fonts() {
     echo -e "${G}\n [*] Preparing to install Nerd Fonts...${RS}"
+    
+    # Ensure wget and unzip are installed
+    if ! command -v wget &>/dev/null || ! command -v unzip &>/dev/null; then
+        echo -e "${Y} [*] Installing required dependencies (wget, unzip)...${RS}"
+        $SUDO_CMD pacman -S --needed --noconfirm wget unzip
+    fi
+    
     FONT_DIR="$TARGET_HOME/.local/share/fonts"
     mkdir -p "$FONT_DIR"
     
@@ -1565,10 +1589,10 @@ update_tool() {
     echo -e "${Y}\n [!] Updating customizer tool...${RS}"
     if [ -d "$SCRIPT_DIR/.git" ]; then
         cd "$SCRIPT_DIR"
-        git fetch --all
-        git reset --hard origin/main || git reset --hard origin/master || true
+        run_git_in_repo fetch --all
+        run_git_in_repo reset --hard origin/main || run_git_in_repo reset --hard origin/master || true
         
-        if git pull; then
+        if run_git_in_repo pull; then
             echo -e "${G} [✓] Update complete! Reloading script...${RS}"
             sleep 2
             # Use absolute path to the script to prevent failure after CWD changes
@@ -1644,10 +1668,10 @@ check_for_updates() {
     if [ -d "$SCRIPT_DIR/.git" ] && command -v git &>/dev/null; then
         echo -e "${G} [*] Checking for updates...${RS}"
         # Timeout after 3 seconds to avoid hanging if user is offline
-        timeout 3 git fetch --quiet &>/dev/null
+        timeout 3 run_git_in_repo fetch --quiet &>/dev/null
         
-        LOCAL=$(git rev-parse HEAD 2>/dev/null)
-        UPSTREAM=$(git rev-parse @{u} 2>/dev/null)
+        LOCAL=$(run_git_in_repo rev-parse HEAD 2>/dev/null)
+        UPSTREAM=$(run_git_in_repo rev-parse @{u} 2>/dev/null)
         
         if [ "$LOCAL" != "$UPSTREAM" ] && [ -n "$UPSTREAM" ]; then
             echo -e "${Y}\n [!] A new update is available for this tool!${RS}"
